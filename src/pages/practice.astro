@@ -1,0 +1,264 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import QuestionCard from '../components/QuestionCard.astro';
+import ProgressBar from '../components/ProgressBar.astro';
+import categories from '../data/categories.json';
+import questions from '../data/questions.json';
+---
+
+<BaseLayout title="โหมดฝึก" current="practice">
+  <!-- ตั้งค่าชุดฝึก -->
+  <section id="setup" class="anim-in" aria-labelledby="setup-heading">
+    <p class="eyebrow">โหมดฝึก · เฉลยทันที · ไม่จับเวลา</p>
+    <h1 id="setup-heading" class="mt-3 text-3xl font-semibold tracking-tight">เลือกชุดที่จะฝึก</h1>
+
+    <div id="setup-resume" hidden class="card mt-6 flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+      <p><span class="block font-medium">มีชุดฝึกค้างไว้</span><span data-resume-meta class="block text-sm text-zinc-600 dark:text-zinc-400"></span></p>
+      <button type="button" id="btn-resume" class="btn-primary">ฝึกต่อ</button>
+    </div>
+
+    <fieldset class="mt-8">
+      <legend class="text-sm font-medium text-zinc-700 dark:text-zinc-300">ขอบเขตคำถาม</legend>
+      <div id="filter-chips" class="mt-3 flex flex-wrap gap-2">
+        <button type="button" class="chip" data-filter="all" aria-pressed="true">ทุกหมวด ({questions.length})</button>
+        {
+          categories.map((c) => (
+            <button type="button" class="chip" data-filter={c.id} aria-pressed="false">
+              {c.name} ({questions.filter((q) => q.category === c.name).length})
+            </button>
+          ))
+        }
+        <button type="button" class="chip" data-filter="wrong" aria-pressed="false" hidden>ข้อที่ยังตอบผิด (<span data-wrong-count>0</span>)</button>
+      </div>
+    </fieldset>
+
+    <button type="button" id="btn-start" class="btn-primary mt-8 w-full py-3 text-base sm:w-auto sm:px-8">เริ่มฝึก</button>
+  </section>
+
+  <!-- กำลังฝึก -->
+  <section id="run" hidden aria-label="กำลังฝึก">
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="eyebrow">โหมดฝึก</p>
+        <p data-run-label class="truncate font-semibold"></p>
+      </div>
+      <div class="flex items-center gap-3">
+        <p data-live-score class="text-sm text-zinc-600 tabular-nums dark:text-zinc-400" aria-live="polite"></p>
+        <button type="button" id="btn-finish" class="btn-secondary">จบและดูสรุปผล</button>
+      </div>
+    </div>
+
+    <ProgressBar id="practice-progress" label="ความคืบหน้า" />
+
+    <div class="mt-5">
+      <QuestionCard id="practice-card" />
+    </div>
+
+    <nav class="mt-5 flex items-center justify-between gap-3" aria-label="เปลี่ยนข้อ">
+      <button type="button" id="btn-prev" class="btn-secondary">← ข้อก่อนหน้า</button>
+      <button type="button" id="btn-next" class="btn-primary">ข้อถัดไป →</button>
+    </nav>
+    <p class="mt-4 hidden text-center text-xs text-zinc-500 sm:block dark:text-zinc-400">
+      <kbd>1</kbd>–<kbd>4</kbd> เลือก · <kbd>Enter</kbd> ข้อถัดไป · <kbd>←</kbd> <kbd>→</kbd> เปลี่ยนข้อ
+    </p>
+  </section>
+</BaseLayout>
+
+<script>
+  import questions from '../data/questions.json';
+  import { buildSet } from '../lib/shuffle.js';
+  import { getSession, saveSession, clearSession, saveAttempt, getHistory, newId } from '../lib/storage.js';
+  import { scoreAttempt, latestWrongIds } from '../lib/analytics.js';
+  import { renderQuestion, setProgress, scrollToEl, bindShortcuts, toast, CATEGORY_BY_ID } from '../lib/ui.js';
+
+  type State = {
+    label: string;
+    retake: string;
+    order: number[];
+    perm: Record<number, number[]>;
+    answers: Record<number, number>;
+    index: number;
+    startedAt: number;
+  };
+
+  const qMap = new Map(questions.map((q) => [q.id, q]));
+  const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
+  const setupEl = $('#setup');
+  const runEl = $('#run');
+  const card = $('#practice-card');
+  const progress = $('#practice-progress');
+  const btnPrev = $<HTMLButtonElement>('#btn-prev');
+  const btnNext = $<HTMLButtonElement>('#btn-next');
+  let state: State | null = null;
+
+  /* ---------- สร้างชุดฝึก ---------- */
+  function pool(filter: string, ids?: number[]) {
+    if (ids?.length) return { list: questions.filter((q) => ids.includes(q.id)), label: `ทบทวน ${ids.length} ข้อที่เลือก` };
+    if (filter === 'wrong') {
+      const w = latestWrongIds(getHistory());
+      return { list: questions.filter((q) => w.includes(q.id)), label: `ข้อที่ยังตอบผิด (${w.length})` };
+    }
+    const cat = CATEGORY_BY_ID.get(filter);
+    if (cat) return { list: questions.filter((q) => q.category === cat.name), label: `${cat.name} · ${cat.nameTh}` };
+    return { list: questions, label: `ทุกหมวด (${questions.length} ข้อ)` };
+  }
+
+  function start(filter: string, ids?: number[]) {
+    const { list, label } = pool(filter, ids);
+    if (!list.length) {
+      toast('ไม่มีข้อในชุดนี้');
+      return;
+    }
+    const { order, perm } = buildSet(list);
+    const retake = ids?.length ? `/practice/?ids=${ids.join(',')}` : filter === 'all' ? '/practice/' : `/practice/?${filter === 'wrong' ? 'mode=wrong' : `cat=${filter}`}`;
+    state = { label, retake, order, perm, answers: {}, index: 0, startedAt: Date.now() };
+    persist();
+    enter();
+  }
+
+  const persist = () => state && saveSession('practice', state);
+
+  function enter() {
+    setupEl.hidden = true;
+    runEl.hidden = false;
+    $('[data-run-label]').textContent = state!.label;
+    history.replaceState(null, '', '/practice/?resume=1');
+    render(false);
+  }
+
+  /* ---------- แสดงผล ---------- */
+  function render(focus = true) {
+    if (!state) return;
+    const id = state.order[state.index];
+    const q = qMap.get(id)!;
+    const selected = state.answers[id] ?? null;
+    renderQuestion(card, {
+      q,
+      perm: state.perm[id],
+      number: state.index + 1,
+      total: state.order.length,
+      selected,
+      reveal: selected !== null,
+    });
+
+    const answered = Object.keys(state.answers).length;
+    const correct = Object.entries(state.answers).filter(([qid, a]) => qMap.get(Number(qid))?.answer === a).length;
+    setProgress(progress, answered, state.order.length, `ตอบแล้ว ${answered} / ${state.order.length}`);
+    $('[data-live-score]').textContent = answered ? `ถูก ${correct} จาก ${answered}` : '';
+
+    btnPrev.disabled = state.index === 0;
+    const last = state.index === state.order.length - 1;
+    btnNext.textContent = last ? 'ดูสรุปผล' : 'ข้อถัดไป →';
+
+    if (focus) {
+      scrollToEl(card);
+      card.querySelector<HTMLElement>('[data-q-text]')?.focus({ preventScroll: true });
+    }
+  }
+
+  function choose(pos: number) {
+    if (!state) return;
+    const id = state.order[state.index];
+    if (state.answers[id] !== undefined) return; // ตอบแล้วล็อกไว้
+    const orig = state.perm[id][pos];
+    if (orig === undefined) return;
+    state.answers[id] = orig;
+    persist();
+    render(false);
+  }
+
+  function go(delta: number) {
+    if (!state) return;
+    const next = state.index + delta;
+    if (next < 0) return;
+    if (next >= state.order.length) {
+      finish();
+      return;
+    }
+    state.index = next;
+    persist();
+    render();
+  }
+
+  function finish() {
+    if (!state) return;
+    const answeredIds = state.order.filter((id) => state!.answers[id] !== undefined);
+    if (!answeredIds.length) {
+      toast('ยังไม่ได้ตอบสักข้อ');
+      return;
+    }
+    const left = state.order.length - answeredIds.length;
+    if (left > 0 && !confirm(`ยังเหลืออีก ${left} ข้อที่ยังไม่ได้ตอบ\nจะสรุปผลจากข้อที่ตอบแล้ว ${answeredIds.length} ข้อ ใช่หรือไม่?`)) return;
+
+    const res = scoreAttempt(qMap, answeredIds, state.answers);
+    const attempt = {
+      id: newId(),
+      date: new Date().toISOString(),
+      mode: 'practice',
+      label: state.label,
+      retake: state.retake,
+      durationSec: Math.round((Date.now() - state.startedAt) / 1000),
+      perm: Object.fromEntries(answeredIds.map((id) => [id, state!.perm[id]])),
+      ...res,
+    };
+    saveAttempt(attempt);
+    clearSession('practice');
+    state = null;
+    location.href = `/result/?id=${encodeURIComponent(attempt.id)}`;
+  }
+
+  /* ---------- Events ---------- */
+  card.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach((btn) => {
+    btn.addEventListener('click', () => choose(Number(btn.dataset.choice)));
+  });
+  btnPrev.addEventListener('click', () => go(-1));
+  btnNext.addEventListener('click', () => go(1));
+  $('#btn-finish').addEventListener('click', finish);
+
+  bindShortcuts({
+    isActive: () => !!state,
+    onChoice: choose,
+    onNext: () => go(1),
+    onPrev: () => go(-1),
+  });
+
+  // setup chips
+  let filter = 'all';
+  const chips = document.querySelectorAll<HTMLButtonElement>('#filter-chips [data-filter]');
+  chips.forEach((chip) =>
+    chip.addEventListener('click', () => {
+      filter = chip.dataset.filter!;
+      chips.forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+    }),
+  );
+  $('#btn-start').addEventListener('click', () => start(filter));
+
+  /* ---------- Init ---------- */
+  const params = new URLSearchParams(location.search);
+  const saved = getSession('practice') as State | null;
+  const wrongIds = latestWrongIds(getHistory());
+  if (wrongIds.length) {
+    const chip = document.querySelector<HTMLButtonElement>('[data-filter="wrong"]')!;
+    chip.hidden = false;
+    chip.querySelector('[data-wrong-count]')!.textContent = String(wrongIds.length);
+  }
+
+  if (params.get('resume') && saved?.order?.length) {
+    state = saved;
+    enter();
+  } else if (params.get('ids')) {
+    start('ids', params.get('ids')!.split(',').map(Number).filter((n) => qMap.has(n)));
+  } else if (params.get('mode') === 'wrong') {
+    start('wrong');
+  } else if (params.get('cat') && CATEGORY_BY_ID.has(params.get('cat')!)) {
+    start(params.get('cat')!);
+  } else if (saved?.order?.length) {
+    const box = $('#setup-resume');
+    box.hidden = false;
+    box.querySelector('[data-resume-meta]')!.textContent = `${saved.label} · ตอบแล้ว ${Object.keys(saved.answers).length}/${saved.order.length} ข้อ`;
+    $('#btn-resume').addEventListener('click', () => {
+      state = saved;
+      enter();
+    });
+  }
+</script>

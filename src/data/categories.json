@@ -1,0 +1,9 @@
+[
+  { "id": "ml", "name": "ML Foundations", "nameTh": "พื้นฐาน Machine Learning และ Pattern Recognition" },
+  { "id": "knn", "name": "k-NN", "nameTh": "k-Nearest Neighbors และการคำนวณระยะ" },
+  { "id": "robotics", "name": "Robotics", "nameTh": "วิทยาการหุ่นยนต์" },
+  { "id": "image", "name": "Image Processing", "nameTh": "การประมวลผลภาพและคอมพิวเตอร์กราฟิก" },
+  { "id": "animation", "name": "Animation", "nameTh": "การสร้างภาพเคลื่อนไหว" },
+  { "id": "dl", "name": "Deep Learning", "nameTh": "Deep Learning และ Neural Network" },
+  { "id": "expert", "name": "Expert Systems", "nameTh": "ระบบผู้เชี่ยวชาญและลักษณะระบบ AI" }
+]

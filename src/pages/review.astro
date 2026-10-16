@@ -1,0 +1,116 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="ทบทวนข้อผิด">
+  <div id="empty" hidden class="card mx-auto max-w-lg p-8 text-center">
+    <h1 data-empty-title class="text-xl font-semibold">ยังไม่มีข้อให้ทบทวน</h1>
+    <p data-empty-text class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">ทำข้อสอบก่อน แล้วข้อที่ตอบผิดจะแสดงที่นี่</p>
+    <div class="mt-6 flex justify-center gap-2"><a href="/practice/" class="btn-secondary">ฝึก</a><a href="/exam/" class="btn-primary">สอบ</a></div>
+  </div>
+
+  <div id="content" hidden>
+    <header class="anim-in">
+      <p data-meta class="eyebrow"></p>
+      <h1 class="mt-3 text-3xl font-semibold tracking-tight">ทบทวนข้อที่ผิด</h1>
+      <p data-summary class="mt-2 text-zinc-600 dark:text-zinc-400"></p>
+    </header>
+
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <div data-filters class="flex flex-wrap gap-2" role="group" aria-label="กรองตามหมวด"></div>
+      <a data-practice href="/practice/" class="btn-primary">ฝึกข้อเหล่านี้ใหม่</a>
+    </div>
+
+    <ol data-list class="mt-6 space-y-4"></ol>
+
+    <div class="mt-8 flex gap-3">
+      <a data-back href="/result/" class="btn-secondary">← กลับหน้าสรุปผล</a>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  import questions from '../data/questions.json';
+  import { getAttempt } from '../lib/storage.js';
+  import { MODE_LABELS } from '../lib/analytics.js';
+  import { escapeHtml, formatDate, LETTERS, CATEGORY_BY_NAME } from '../lib/ui.js';
+
+  const qMap = new Map(questions.map((q) => [q.id, q]));
+  const id = new URLSearchParams(location.search).get('id');
+  const a = getAttempt(id);
+  const wrong = (a?.items ?? []).filter((it: any) => !it.correct && qMap.has(it.id));
+
+  if (!a || !wrong.length) {
+    const empty = document.getElementById('empty')!;
+    empty.hidden = false;
+    if (a) {
+      empty.querySelector('[data-empty-title]')!.textContent = 'ไม่มีข้อผิดในครั้งนี้';
+      empty.querySelector('[data-empty-text]')!.textContent = `ได้ ${a.correct}/${a.total} — ลองทำชุดใหม่เพื่อเช็กว่าแม่นจริง`;
+    }
+  } else {
+    const root = document.getElementById('content')!;
+    root.hidden = false;
+    const $ = (sel: string) => root.querySelector(sel) as HTMLElement;
+
+    $('[data-meta]').textContent = `${MODE_LABELS[a.mode as keyof typeof MODE_LABELS] ?? a.mode} · ${formatDate(a.date)}`;
+    const blank = wrong.filter((w: any) => w.selected === null).length;
+    $('[data-summary]').textContent = `ผิด ${wrong.length} จาก ${a.total} ข้อ${blank ? ` (ไม่ได้ตอบ ${blank} ข้อ)` : ''}`;
+    ($('[data-practice]') as HTMLAnchorElement).href = `/practice/?ids=${wrong.map((w: any) => w.id).join(',')}`;
+    ($('[data-back]') as HTMLAnchorElement).href = `/result/?id=${encodeURIComponent(a.id)}`;
+
+    const letter = (qid: number, orig: number) => {
+      const perm = a.perm?.[qid];
+      return perm ? `${LETTERS[perm.indexOf(orig)]}. ` : '';
+    };
+
+    const items = wrong.map((w: any, i: number) => {
+      const q = qMap.get(w.id)!;
+      const skipped = w.selected === null;
+      const yours = skipped
+        ? '<p class="italic text-zinc-500 dark:text-zinc-400">ไม่ได้ตอบ</p>'
+        : `<p>${letter(q.id, w.selected)}${escapeHtml(q.choices[w.selected])}</p>`;
+      const why = !skipped && q.misconceptions?.[w.selected]
+        ? `<p class="mt-3 text-sm leading-relaxed"><span class="font-medium">ทำไมข้อที่เลือกถึงผิด:</span> ${escapeHtml(q.misconceptions[w.selected])}</p>`
+        : '';
+      return {
+        category: q.category,
+        html: `
+        <li data-cat="${escapeHtml(q.category)}" class="card anim-in p-5 sm:p-6">
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <span class="font-semibold text-zinc-900 dark:text-zinc-100">#${i + 1}</span>
+            <span class="rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">${escapeHtml(q.category)}</span>
+          </div>
+          <h2 class="mt-3 font-medium leading-relaxed">${escapeHtml(q.question)}</h2>
+          <div class="mt-4 grid gap-2.5 sm:grid-cols-2">
+            <div class="rounded-xl border border-rose-200 bg-rose-50/70 p-3.5 text-sm dark:border-rose-900 dark:bg-rose-950/40">
+              <p class="mb-1 text-xs font-semibold text-rose-700 dark:text-rose-400">คำตอบของคุณ</p>${yours}
+            </div>
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+              <p class="mb-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">คำตอบที่ถูก</p>
+              <p>${letter(q.id, q.answer)}${escapeHtml(q.choices[q.answer])}</p>
+            </div>
+          </div>
+          <p class="mt-4 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300"><span class="font-medium">คำอธิบาย:</span> ${escapeHtml(q.explanation)}</p>
+          ${why}
+        </li>`,
+      };
+    });
+    $('[data-list]').innerHTML = items.map((x) => x.html).join('');
+
+    // ตัวกรองหมวด
+    const counts = new Map<string, number>();
+    items.forEach((x) => counts.set(x.category, (counts.get(x.category) ?? 0) + 1));
+    const filters = $('[data-filters]');
+    const cats = [...CATEGORY_BY_NAME.keys()].filter((n) => counts.has(n));
+    filters.innerHTML = [`<button type="button" class="chip" data-f="" aria-pressed="true">ทั้งหมด (${items.length})</button>`]
+      .concat(cats.map((c) => `<button type="button" class="chip" data-f="${escapeHtml(c)}" aria-pressed="false">${escapeHtml(c)} (${counts.get(c)})</button>`))
+      .join('');
+    filters.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const f = btn.dataset.f;
+        filters.querySelectorAll('[data-f]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+        root.querySelectorAll<HTMLElement>('[data-list] > li').forEach((li) => (li.hidden = !!f && li.dataset.cat !== f));
+      }),
+    );
+  }
+</script>

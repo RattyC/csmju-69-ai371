@@ -1,0 +1,61 @@
+---
+/**
+ * สรุปคะแนนรวม — ค่าถูกเติมโดย script ของ pages/result.astro ผ่าน data-* attributes
+ */
+const CIRC = 2 * Math.PI * 52; // เส้นรอบวงของวงแหวน r = 52
+---
+
+<section data-result-summary class="card anim-in p-6 sm:p-8" aria-labelledby="result-heading">
+  <div class="flex flex-col items-center gap-8 sm:flex-row sm:items-center">
+    <div class="relative size-40 shrink-0">
+      <svg viewBox="0 0 120 120" class="size-40 -rotate-90" aria-hidden="true">
+        <circle cx="60" cy="60" r="52" fill="none" stroke-width="10" class="stroke-zinc-100 dark:stroke-zinc-800"></circle>
+        <circle
+          data-ring
+          cx="60"
+          cy="60"
+          r="52"
+          fill="none"
+          stroke-width="10"
+          stroke-linecap="round"
+          stroke-dasharray={CIRC.toFixed(2)}
+          stroke-dashoffset={CIRC.toFixed(2)}
+          data-circ={CIRC.toFixed(2)}
+          class="stroke-indigo-600 transition-[stroke-dashoffset] duration-300 ease-out data-[passed=false]:stroke-rose-600 dark:stroke-indigo-400 dark:data-[passed=false]:stroke-rose-500"
+        ></circle>
+      </svg>
+      <div class="absolute inset-0 grid place-items-center text-center">
+        <div>
+          <p data-percent class="text-3xl font-semibold tabular-nums">0%</p>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">คะแนน</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-full min-w-0 flex-1">
+      <div class="flex flex-wrap items-center gap-3">
+        <h1 id="result-heading" class="text-2xl font-semibold tracking-tight">สรุปผลการทำข้อสอบ</h1>
+        <span
+          data-pass-badge
+          class="rounded-full px-3 py-1 text-sm font-semibold data-[passed=true]:bg-emerald-50 data-[passed=true]:text-emerald-700 data-[passed=false]:bg-rose-50 data-[passed=false]:text-rose-700 dark:data-[passed=true]:bg-emerald-950 dark:data-[passed=true]:text-emerald-300 dark:data-[passed=false]:bg-rose-950 dark:data-[passed=false]:text-rose-300"
+        ></span>
+      </div>
+      <p data-meta class="mt-1 text-sm text-zinc-500 dark:text-zinc-400"></p>
+
+      <dl class="mt-6 grid grid-cols-3 gap-3">
+        <div class="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60">
+          <dt class="text-xs text-zinc-500 dark:text-zinc-400">เกรด</dt>
+          <dd data-grade class="mt-1 text-2xl font-semibold"></dd>
+        </div>
+        <div class="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60">
+          <dt class="text-xs text-zinc-500 dark:text-zinc-400">คะแนนดิบ</dt>
+          <dd data-raw class="mt-1 text-2xl font-semibold tabular-nums"></dd>
+        </div>
+        <div class="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60">
+          <dt class="text-xs text-zinc-500 dark:text-zinc-400">เวลาที่ใช้</dt>
+          <dd data-duration class="mt-1 text-base font-semibold sm:text-lg"></dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</section>

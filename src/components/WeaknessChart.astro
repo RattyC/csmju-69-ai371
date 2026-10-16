@@ -1,0 +1,29 @@
+---
+/**
+ * กราฟแท่งผลแยกตามหมวด — เรนเดอร์โดย renderCategoryBars() ใน lib/ui.js
+ * เส้นแนวตั้งในแต่ละแท่ง = เกณฑ์ 60% (จุดอ่อน) และ 80% (จุดแข็ง)
+ */
+interface Props {
+  id: string;
+  title: string;
+  description?: string;
+}
+const { id, title, description } = Astro.props;
+---
+
+<section class="card p-6 sm:p-8" aria-labelledby={`${id}-title`}>
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 id={`${id}-title`} class="text-lg font-semibold">{title}</h2>
+      {description && <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>}
+    </div>
+    <ul class="flex gap-4 text-xs text-zinc-500 dark:text-zinc-400" aria-label="คำอธิบายสี">
+      <li class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-emerald-600"></span>≥ 80%</li>
+      <li class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>60–79%</li>
+      <li class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-rose-600"></span>&lt; 60%</li>
+    </ul>
+  </div>
+  <div data-weakness-chart={id} class="mt-6 space-y-5">
+    <p class="text-sm text-zinc-500 dark:text-zinc-400">กำลังโหลด…</p>
+  </div>
+</section>

@@ -1,0 +1,33 @@
+---
+/**
+ * การ์ดคำถาม — โครง HTML คงที่ เนื้อหาถูกเติมโดย renderQuestion() ใน lib/ui.js
+ */
+import ChoiceButton from './ChoiceButton.astro';
+
+interface Props {
+  id?: string;
+  choices?: number;
+}
+const { id = 'question-card', choices = 4 } = Astro.props;
+const textId = `${id}-text`;
+---
+
+<article id={id} data-question-card class="card anim-in p-5 sm:p-8" aria-labelledby={textId}>
+  <header class="flex flex-wrap items-center gap-2 text-xs">
+    <span data-q-number class="font-semibold text-zinc-900 tabular-nums dark:text-zinc-100"></span>
+    <span aria-hidden="true" class="text-zinc-300 dark:text-zinc-700">/</span>
+    <span data-q-category class="rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"></span>
+    <span data-q-difficulty class="rounded-full border border-zinc-200 px-2.5 py-1 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"></span>
+    <span data-q-flag hidden class="rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">ทำเครื่องหมายทบทวน</span>
+  </header>
+
+  <h2 id={textId} data-q-text tabindex="-1" class="mt-4 text-lg leading-relaxed font-medium text-pretty focus:outline-none sm:text-xl"></h2>
+
+  <div role="group" aria-labelledby={textId} class="mt-6 grid gap-2.5">
+    {Array.from({ length: choices }, (_, i) => <ChoiceButton index={i} />)}
+  </div>
+
+  <div data-q-feedback hidden aria-live="polite" class="mt-5"></div>
+
+  <slot />
+</article>

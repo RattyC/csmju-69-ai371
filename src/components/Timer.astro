@@ -1,0 +1,25 @@
+---
+/**
+ * แสดงเวลาที่เหลือ — ตัวเลขถูกอัปเดตโดย lib/timer.js
+ * data-urgent="true" เมื่อเหลือ ≤ 10 นาที
+ */
+interface Props {
+  id?: string;
+}
+const { id = 'exam-timer' } = Astro.props;
+---
+
+<div
+  id={id}
+  data-timer
+  data-urgent="false"
+  role="timer"
+  aria-label="เวลาที่เหลือ"
+  class="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold tabular-nums transition-colors duration-300 data-[urgent=true]:border-rose-300 data-[urgent=true]:bg-rose-50 data-[urgent=true]:text-rose-700 dark:border-zinc-700 dark:bg-zinc-900 dark:data-[urgent=true]:border-rose-800 dark:data-[urgent=true]:bg-rose-950 dark:data-[urgent=true]:text-rose-300"
+>
+  <svg aria-hidden="true" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="13" r="8"></circle>
+    <path d="M12 9v4l2.5 2.5M9 2h6"></path>
+  </svg>
+  <span data-timer-text>03:00:00</span>
+</div>

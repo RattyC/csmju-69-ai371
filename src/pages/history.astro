@@ -1,0 +1,106 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import WeaknessChart from '../components/WeaknessChart.astro';
+---
+
+<BaseLayout title="ประวัติ" current="history">
+  <header class="anim-in flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="eyebrow">บันทึกในเครื่องนี้เท่านั้น (localStorage)</p>
+      <h1 class="mt-3 text-3xl font-semibold tracking-tight">ประวัติการทำข้อสอบ</h1>
+    </div>
+    <button type="button" id="btn-clear" hidden class="btn-ghost text-rose-700 dark:text-rose-400">ล้างประวัติ</button>
+  </header>
+
+  <div id="empty" hidden class="card mt-8 p-8 text-center">
+    <p class="font-medium">ยังไม่มีประวัติ</p>
+    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">ทุกครั้งที่ส่งข้อสอบหรือจบชุดฝึก ผลจะถูกบันทึกไว้ที่นี่</p>
+    <div class="mt-6 flex justify-center gap-2"><a href="/practice/" class="btn-secondary">ฝึก</a><a href="/exam/" class="btn-primary">สอบ</a></div>
+  </div>
+
+  <div id="content" hidden class="mt-8 space-y-6">
+    <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="card p-4"><dt class="text-xs text-zinc-500 dark:text-zinc-400">จำนวนครั้ง</dt><dd data-s="count" class="mt-1 text-2xl font-semibold tabular-nums"></dd></div>
+      <div class="card p-4"><dt class="text-xs text-zinc-500 dark:text-zinc-400">ค่าเฉลี่ย</dt><dd data-s="avg" class="mt-1 text-2xl font-semibold tabular-nums"></dd></div>
+      <div class="card p-4"><dt class="text-xs text-zinc-500 dark:text-zinc-400">สูงสุด</dt><dd data-s="best" class="mt-1 text-2xl font-semibold tabular-nums"></dd></div>
+      <div class="card p-4"><dt class="text-xs text-zinc-500 dark:text-zinc-400">เปลี่ยนจากครั้งก่อน</dt><dd data-s="delta" class="mt-1 text-2xl font-semibold tabular-nums"></dd></div>
+    </dl>
+
+    <section class="card p-6 sm:p-8" aria-labelledby="trend-heading">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <h2 id="trend-heading" class="text-lg font-semibold">แนวโน้มคะแนน</h2>
+        <ul class="flex gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+          <li class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>โหมดสอบ</li>
+          <li class="flex items-center gap-1.5"><span class="size-2.5 rounded-full border-2 border-indigo-600 dark:border-indigo-400"></span>โหมดฝึก</li>
+        </ul>
+      </div>
+      <div data-trend class="mt-4"></div>
+    </section>
+
+    <WeaknessChart id="history-chart" title="ความแม่นยำสะสมแยกตามหมวด" description="รวมทุกครั้งที่ทำ ทั้งโหมดฝึกและโหมดสอบ" />
+
+    <section aria-labelledby="list-heading">
+      <h2 id="list-heading" class="text-lg font-semibold">ทุกครั้งที่ทำ</h2>
+      <ol data-list class="mt-4 space-y-2.5"></ol>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import { getHistory, clearHistory } from '../lib/storage.js';
+  import { aggregateHistory, historyStats, MODE_LABELS } from '../lib/analytics.js';
+  import { renderCategoryBars, renderTrendChart, escapeHtml, formatDate } from '../lib/ui.js';
+
+  const history = getHistory();
+  const stats = historyStats(history);
+
+  if (!stats) {
+    document.getElementById('empty')!.hidden = false;
+  } else {
+    const root = document.getElementById('content')!;
+    root.hidden = false;
+    const $ = (sel: string) => root.querySelector(sel) as HTMLElement;
+
+    $('[data-s="count"]').textContent = `${stats.count}`;
+    $('[data-s="avg"]').textContent = `${stats.average}%`;
+    $('[data-s="best"]').textContent = `${stats.best}%`;
+    const delta = history.length > 1 ? Math.round((history[history.length - 1].percent - history[history.length - 2].percent) * 10) / 10 : null;
+    const d = $('[data-s="delta"]');
+    d.textContent = delta === null ? '—' : `${delta > 0 ? '+' : ''}${delta}%`;
+    if (delta !== null) d.classList.add(delta >= 0 ? 'text-emerald-700' : 'text-rose-700', delta >= 0 ? 'dark:text-emerald-400' : 'dark:text-rose-400');
+
+    renderTrendChart($('[data-trend]'), history);
+    renderCategoryBars($('[data-weakness-chart="history-chart"]'), aggregateHistory(history));
+
+    $('[data-list]').innerHTML = history
+      .map((a, i) => ({ a, n: i + 1 }))
+      .reverse()
+      .map(({ a, n }) => {
+        const weak = a.weak?.length ? a.weak.map((w: string) => `<span class="rounded-full bg-rose-50 px-2 py-0.5 text-rose-700 dark:bg-rose-950 dark:text-rose-300">${escapeHtml(w)}</span>`).join(' ') : '<span class="text-zinc-500 dark:text-zinc-400">ไม่มีหมวดที่อ่อน</span>';
+        return `
+          <li>
+            <a href="/result/?id=${encodeURIComponent(a.id)}" class="card flex items-center gap-4 px-4 py-3.5 transition-colors duration-200 hover:border-zinc-400 sm:px-5 dark:hover:border-zinc-600">
+              <span class="hidden w-8 shrink-0 text-sm text-zinc-400 tabular-nums sm:block">#${n}</span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-sm font-medium">${escapeHtml(MODE_LABELS[a.mode as keyof typeof MODE_LABELS] ?? a.mode)} <span class="font-normal text-zinc-500 dark:text-zinc-400">· ${escapeHtml(formatDate(a.date))}</span></span>
+                <span class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">${weak}</span>
+              </span>
+              <span class="shrink-0 text-right">
+                <span class="block text-lg font-semibold tabular-nums">${a.percent}%</span>
+                <span class="block text-xs tabular-nums text-zinc-500 dark:text-zinc-400">${a.correct}/${a.total} · ${escapeHtml(a.grade)}</span>
+              </span>
+            </a>
+          </li>`;
+      })
+      .join('');
+
+    const clear = document.getElementById('btn-clear')!;
+    clear.hidden = false;
+    clear.addEventListener('click', () => {
+      if (confirm('ล้างประวัติทั้งหมด? ข้อมูลนี้กู้คืนไม่ได้')) {
+        clearHistory();
+        location.reload();
+      }
+    });
+  }
+</script>

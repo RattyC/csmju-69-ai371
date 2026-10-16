@@ -1,0 +1,17 @@
+{
+  "name": "ซ้อมสอบ Final วิชา AI",
+  "short_name": "AI Final",
+  "description": "ซ้อมทำข้อสอบ Final วิชาปัญญาประดิษฐ์ แบบปรนัย 60 ข้อ ใช้งานออฟไลน์ได้",
+  "lang": "th",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#18181b",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

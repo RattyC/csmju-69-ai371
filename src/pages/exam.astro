@@ -1,0 +1,396 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import QuestionCard from '../components/QuestionCard.astro';
+import ProgressBar from '../components/ProgressBar.astro';
+import Timer from '../components/Timer.astro';
+import questions from '../data/questions.json';
+
+const EXAM_SIZE = Math.min(60, questions.length);
+const navCell =
+  'group relative grid h-9 place-items-center rounded-lg border border-zinc-200 text-xs font-medium text-zinc-600 tabular-nums transition-colors duration-200 hover:border-zinc-400 data-[answered=true]:border-zinc-900 data-[answered=true]:bg-zinc-900 data-[answered=true]:text-white data-[current=true]:ring-2 data-[current=true]:ring-indigo-600 data-[current=true]:ring-offset-2 dark:border-zinc-700 dark:text-zinc-400 dark:ring-offset-zinc-900 dark:data-[answered=true]:border-zinc-100 dark:data-[answered=true]:bg-zinc-100 dark:data-[answered=true]:text-zinc-900 dark:data-[current=true]:ring-indigo-400';
+---
+
+<BaseLayout title="โหมดสอบ" current="exam" wide>
+  <!-- เลือกโหมดย่อย -->
+  <section id="setup" class="anim-in mx-auto max-w-4xl" aria-labelledby="setup-heading">
+    <p class="eyebrow">โหมดสอบ · {EXAM_SIZE} ข้อ · เกณฑ์ผ่าน 60%</p>
+    <h1 id="setup-heading" class="mt-3 text-3xl font-semibold tracking-tight">จำลองสอบจริง</h1>
+    <p class="mt-3 max-w-2xl leading-relaxed text-zinc-600 dark:text-zinc-400">
+      สุ่มลำดับข้อและลำดับตัวเลือกใหม่ทุกครั้ง เฉลยและคะแนนจะแสดงหลังกดส่งข้อสอบเท่านั้น ระหว่างทำสามารถทำเครื่องหมายข้อที่ต้องการกลับมาทบทวนได้
+    </p>
+
+    <div id="setup-resume" hidden class="card mt-6 flex flex-wrap items-center justify-between gap-4 border-indigo-200 bg-indigo-50/60 px-5 py-4 dark:border-indigo-900 dark:bg-indigo-950/40">
+      <p><span class="block font-medium">มีข้อสอบที่ทำค้างไว้</span><span data-resume-meta class="block text-sm text-zinc-600 dark:text-zinc-400"></span></p>
+      <div class="flex gap-2">
+        <button type="button" id="btn-discard" class="btn-ghost">ทิ้งและเริ่มใหม่</button>
+        <button type="button" id="btn-resume" class="btn-primary">ทำต่อ</button>
+      </div>
+    </div>
+
+    <div class="mt-8 grid gap-4 sm:grid-cols-2">
+      <button type="button" data-start="timed" class="card group flex flex-col p-6 text-left transition-colors duration-200 hover:border-zinc-400 dark:hover:border-zinc-600">
+        <span class="eyebrow">เหมือนสอบจริง</span>
+        <span class="mt-2 text-xl font-semibold">จับเวลา 180 นาที</span>
+        <span class="mt-2 flex-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">แจ้งเตือนเมื่อเหลือ 10 และ 5 นาที ส่งอัตโนมัติเมื่อหมดเวลา</span>
+        <span class="mt-5 text-sm font-medium text-indigo-700 group-hover:underline dark:text-indigo-300">เริ่มสอบ →</span>
+      </button>
+      <button type="button" data-start="untimed" class="card group flex flex-col p-6 text-left transition-colors duration-200 hover:border-zinc-400 dark:hover:border-zinc-600">
+        <span class="eyebrow">ไม่กดดัน</span>
+        <span class="mt-2 text-xl font-semibold">ไม่จับเวลา</span>
+        <span class="mt-2 flex-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">ทำได้ตามจังหวะตัวเอง ระบบยังบันทึกเวลาที่ใช้ไว้ให้ดูในผลสรุป</span>
+        <span class="mt-5 text-sm font-medium text-indigo-700 group-hover:underline dark:text-indigo-300">เริ่มสอบ →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- กำลังสอบ -->
+  <section id="run" hidden aria-label="กำลังสอบ">
+    <div class="sticky top-14 z-20 -mx-4 mb-5 border-b border-zinc-200/80 bg-white/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 dark:border-zinc-800/80 dark:bg-zinc-950/90">
+      <div class="flex items-center gap-3">
+        <div data-timer-wrap><Timer id="exam-timer" /></div>
+        <div class="hidden min-w-0 flex-1 sm:block"><ProgressBar id="exam-progress" label="ตอบแล้ว" /></div>
+        <p data-answered-mobile class="flex-1 text-sm text-zinc-600 tabular-nums sm:hidden dark:text-zinc-400"></p>
+        <button type="button" id="btn-review" class="btn-secondary px-3 lg:hidden">ทบทวน</button>
+        <button type="button" id="btn-submit" class="btn-primary px-3 sm:px-4">ส่งข้อสอบ</button>
+      </div>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
+      <div class="min-w-0">
+        <QuestionCard id="exam-card" />
+        <nav class="mt-5 flex flex-wrap items-center justify-between gap-3" aria-label="เปลี่ยนข้อ">
+          <button type="button" id="btn-prev" class="btn-secondary">← ก่อนหน้า</button>
+          <button type="button" id="btn-flag" class="btn-ghost" aria-pressed="false">
+            <svg aria-hidden="true" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4m0 0h11l-2 4 2 4H5"></path></svg>
+            <span data-flag-label>ทำเครื่องหมายทบทวน</span>
+          </button>
+          <button type="button" id="btn-next" class="btn-primary">ถัดไป →</button>
+        </nav>
+        <p class="mt-4 hidden text-center text-xs text-zinc-500 sm:block dark:text-zinc-400">
+          <kbd>1</kbd>–<kbd>4</kbd> เลือก (กดซ้ำเพื่อยกเลิก) · <kbd>Enter</kbd> ข้อถัดไป · <kbd>←</kbd> <kbd>→</kbd> เปลี่ยนข้อ
+        </p>
+      </div>
+
+      <aside class="hidden lg:block" aria-labelledby="nav-heading">
+        <div class="card sticky top-36 p-4">
+          <h2 id="nav-heading" class="text-sm font-semibold">ภาพรวมข้อสอบ</h2>
+          <div data-nav-grid class="mt-3 grid grid-cols-6 gap-1.5">
+            {
+              Array.from({ length: EXAM_SIZE }, (_, i) => (
+                <button type="button" data-nav={i} class={navCell}>
+                  {i + 1}
+                  <span aria-hidden="true" class="absolute -top-1 -right-1 hidden size-2.5 rounded-full bg-amber-500 ring-2 ring-white group-data-[flagged=true]:block dark:ring-zinc-900" />
+                </button>
+              ))
+            }
+          </div>
+          <ul class="mt-4 space-y-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+            <li class="flex items-center gap-2"><span class="size-3 rounded bg-zinc-900 dark:bg-zinc-100"></span>ตอบแล้ว</li>
+            <li class="flex items-center gap-2"><span class="size-3 rounded border border-zinc-300 dark:border-zinc-600"></span>ยังไม่ตอบ</li>
+            <li class="flex items-center gap-2"><span class="size-2.5 rounded-full bg-amber-500"></span>ทำเครื่องหมายทบทวน</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Dialog: ภาพรวม (มือถือ) -->
+  <dialog id="review-dialog" aria-labelledby="review-title" class="m-auto w-[min(92vw,26rem)] rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+    <div class="p-5" data-lenis-prevent>
+      <div class="flex items-center justify-between">
+        <h2 id="review-title" class="font-semibold">ภาพรวมข้อสอบ</h2>
+        <form method="dialog"><button class="btn-ghost px-2 py-1" aria-label="ปิด">ปิด</button></form>
+      </div>
+      <p data-review-summary class="mt-1 text-sm text-zinc-500 dark:text-zinc-400"></p>
+      <div data-nav-grid class="mt-4 grid grid-cols-6 gap-1.5">
+        {
+          Array.from({ length: EXAM_SIZE }, (_, i) => (
+            <button type="button" data-nav={i} class={navCell}>
+              {i + 1}
+              <span aria-hidden="true" class="absolute -top-1 -right-1 hidden size-2.5 rounded-full bg-amber-500 ring-2 ring-white group-data-[flagged=true]:block dark:ring-zinc-900" />
+            </button>
+          ))
+        }
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialog: ยืนยันส่ง -->
+  <dialog id="submit-dialog" aria-labelledby="submit-title" class="m-auto w-[min(92vw,28rem)] rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+    <div class="p-6">
+      <h2 id="submit-title" class="text-lg font-semibold">ส่งข้อสอบเลยไหม?</h2>
+      <dl class="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div class="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60"><dt class="text-xs text-zinc-500 dark:text-zinc-400">ตอบแล้ว</dt><dd data-sum="answered" class="mt-1 text-xl font-semibold tabular-nums"></dd></div>
+        <div class="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60"><dt class="text-xs text-zinc-500 dark:text-zinc-400">ยังไม่ตอบ</dt><dd data-sum="blank" class="mt-1 text-xl font-semibold tabular-nums"></dd></div>
+        <div class="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60"><dt class="text-xs text-zinc-500 dark:text-zinc-400">รอทบทวน</dt><dd data-sum="flagged" class="mt-1 text-xl font-semibold tabular-nums"></dd></div>
+      </dl>
+      <p data-sum-note class="mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400"></p>
+      <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" data-dialog-close class="btn-secondary">กลับไปทบทวน</button>
+        <button type="button" id="btn-confirm-submit" class="btn-primary">ยืนยันส่งข้อสอบ</button>
+      </div>
+    </div>
+  </dialog>
+</BaseLayout>
+
+<script>
+  import questions from '../data/questions.json';
+  import { buildSet } from '../lib/shuffle.js';
+  import { getSession, saveSession, clearSession, saveAttempt, newId } from '../lib/storage.js';
+  import { scoreAttempt } from '../lib/analytics.js';
+  import { createTimer, formatTime } from '../lib/timer.js';
+  import { renderQuestion, setProgress, scrollToEl, bindShortcuts, toast } from '../lib/ui.js';
+
+  type State = {
+    timed: boolean;
+    order: number[];
+    perm: Record<number, number[]>;
+    answers: Record<number, number>;
+    flags: Record<number, boolean>;
+    index: number;
+    startedAt: number;
+    endAt: number | null;
+    alerted: Record<number, boolean>;
+  };
+
+  const EXAM_SIZE = Math.min(60, questions.length);
+  const DURATION_MS = 180 * 60 * 1000;
+  const qMap = new Map(questions.map((q) => [q.id, q]));
+  const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
+
+  const setupEl = $('#setup');
+  const runEl = $('#run');
+  const card = $('#exam-card');
+  const progress = $('#exam-progress');
+  const timerEl = $('#exam-timer');
+  const reviewDialog = $<HTMLDialogElement>('#review-dialog');
+  const submitDialog = $<HTMLDialogElement>('#submit-dialog');
+  const btnFlag = $<HTMLButtonElement>('#btn-flag');
+  let state: State | null = null;
+  let timer: { stop: () => void } | null = null;
+  let submitting = false;
+
+  const persist = () => state && saveSession('exam', state);
+  const answeredCount = () => (state ? Object.keys(state.answers).length : 0);
+  const flaggedCount = () => (state ? Object.values(state.flags).filter(Boolean).length : 0);
+
+  /* ---------- เริ่ม / ทำต่อ ---------- */
+  function start(timed: boolean) {
+    const { order, perm } = buildSet(questions, { limit: EXAM_SIZE });
+    const now = Date.now();
+    state = { timed, order, perm, answers: {}, flags: {}, index: 0, startedAt: now, endAt: timed ? now + DURATION_MS : null, alerted: {} };
+    persist();
+    enter();
+  }
+
+  function enter() {
+    if (!state) return;
+    setupEl.hidden = true;
+    runEl.hidden = false;
+    $('[data-timer-wrap]').hidden = !state.timed;
+    if (state.timed && state.endAt) {
+      if (state.endAt <= Date.now()) {
+        toast('หมดเวลาสอบแล้ว ระบบส่งข้อสอบให้อัตโนมัติ', { tone: 'warn', assertive: true });
+        submit(true);
+        return;
+      }
+      startTimer();
+    }
+    render(false);
+  }
+
+  function startTimer() {
+    if (!state?.endAt) return;
+    const text = timerEl.querySelector('[data-timer-text]')!;
+    timer = createTimer({
+      endAt: state.endAt,
+      alerts: [10, 5],
+      alerted: state.alerted,
+      onTick: (ms) => {
+        text.textContent = formatTime(ms);
+        timerEl.dataset.urgent = String(ms <= 10 * 60_000);
+      },
+      onAlert: (min) => {
+        persist();
+        toast(`เหลือเวลาอีก ${min} นาที — ตรวจข้อที่ยังไม่ตอบ (${EXAM_SIZE - answeredCount()} ข้อ)`, { tone: 'warn', assertive: true });
+      },
+      onExpire: () => {
+        toast('หมดเวลา! ระบบส่งข้อสอบให้อัตโนมัติ', { tone: 'warn', assertive: true });
+        submit(true);
+      },
+    });
+  }
+
+  /* ---------- แสดงผล ---------- */
+  function render(focus = true) {
+    if (!state) return;
+    const id = state.order[state.index];
+    const flagged = !!state.flags[id];
+    renderQuestion(card, {
+      q: qMap.get(id)!,
+      perm: state.perm[id],
+      number: state.index + 1,
+      total: state.order.length,
+      selected: state.answers[id] ?? null,
+      reveal: false,
+      flagged,
+    });
+
+    const answered = answeredCount();
+    setProgress(progress, answered, state.order.length, `${answered} / ${state.order.length}`);
+    $('[data-answered-mobile]').textContent = `ตอบแล้ว ${answered}/${state.order.length}`;
+    btnFlag.setAttribute('aria-pressed', String(flagged));
+    btnFlag.querySelector('[data-flag-label]')!.textContent = flagged ? 'ยกเลิกเครื่องหมาย' : 'ทำเครื่องหมายทบทวน';
+    $<HTMLButtonElement>('#btn-prev').disabled = state.index === 0;
+    $<HTMLButtonElement>('#btn-next').textContent = state.index === state.order.length - 1 ? 'ส่งข้อสอบ' : 'ถัดไป →';
+    updateNav();
+
+    if (focus) {
+      scrollToEl(card, -150);
+      card.querySelector<HTMLElement>('[data-q-text]')?.focus({ preventScroll: true });
+    }
+  }
+
+  function updateNav() {
+    if (!state) return;
+    document.querySelectorAll<HTMLButtonElement>('[data-nav]').forEach((btn) => {
+      const i = Number(btn.dataset.nav);
+      const id = state!.order[i];
+      if (id === undefined) {
+        btn.hidden = true;
+        return;
+      }
+      const answered = state!.answers[id] !== undefined;
+      const flagged = !!state!.flags[id];
+      btn.dataset.answered = String(answered);
+      btn.dataset.flagged = String(flagged);
+      btn.dataset.current = String(i === state!.index);
+      if (i === state!.index) btn.setAttribute('aria-current', 'step');
+      else btn.removeAttribute('aria-current');
+      btn.setAttribute('aria-label', `ข้อ ${i + 1} ${answered ? 'ตอบแล้ว' : 'ยังไม่ตอบ'}${flagged ? ' ทำเครื่องหมายทบทวน' : ''}`);
+    });
+    $('[data-review-summary]').textContent = `ตอบแล้ว ${answeredCount()} · ยังไม่ตอบ ${state.order.length - answeredCount()} · รอทบทวน ${flaggedCount()}`;
+  }
+
+  /* ---------- การกระทำ ---------- */
+  function choose(pos: number) {
+    if (!state) return;
+    const id = state.order[state.index];
+    const orig = state.perm[id][pos];
+    if (orig === undefined) return;
+    if (state.answers[id] === orig) delete state.answers[id]; // กดซ้ำ = ยกเลิกคำตอบ
+    else state.answers[id] = orig;
+    persist();
+    render(false);
+  }
+
+  function goTo(index: number) {
+    if (!state || index < 0 || index >= state.order.length) return;
+    state.index = index;
+    persist();
+    render();
+  }
+
+  function next() {
+    if (!state) return;
+    if (state.index === state.order.length - 1) openSubmit();
+    else goTo(state.index + 1);
+  }
+
+  function toggleFlag() {
+    if (!state) return;
+    const id = state.order[state.index];
+    state.flags[id] = !state.flags[id];
+    persist();
+    render(false);
+  }
+
+  function openSubmit() {
+    if (!state) return;
+    const answered = answeredCount();
+    const blank = state.order.length - answered;
+    const flagged = flaggedCount();
+    $('[data-sum="answered"]').textContent = String(answered);
+    $('[data-sum="blank"]').textContent = String(blank);
+    $('[data-sum="flagged"]').textContent = String(flagged);
+    $('[data-sum-note]').textContent = blank
+      ? `ข้อที่ไม่ได้ตอบ ${blank} ข้อจะนับเป็นผิด`
+      : flagged
+        ? `ตอบครบแล้ว แต่ยังมี ${flagged} ข้อที่ทำเครื่องหมายไว้`
+        : 'ตอบครบทุกข้อแล้ว ส่งได้เลย';
+    submitDialog.showModal();
+  }
+
+  function submit(auto = false) {
+    if (!state || submitting) return;
+    submitting = true;
+    timer?.stop();
+    const res = scoreAttempt(qMap, state.order, state.answers);
+    const attempt = {
+      id: newId(),
+      date: new Date().toISOString(),
+      mode: state.timed ? 'exam-timed' : 'exam-untimed',
+      label: state.timed ? 'จำลองสอบ 60 ข้อ (จับเวลา)' : 'จำลองสอบ 60 ข้อ (ไม่จับเวลา)',
+      retake: '/exam/',
+      autoSubmitted: auto,
+      durationSec: Math.round((Math.min(Date.now(), state.endAt ?? Infinity) - state.startedAt) / 1000),
+      perm: state.perm,
+      ...res,
+    };
+    saveAttempt(attempt);
+    clearSession('exam');
+    state = null;
+    location.href = `/result/?id=${encodeURIComponent(attempt.id)}`;
+  }
+
+  /* ---------- Events ---------- */
+  card.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach((btn) => btn.addEventListener('click', () => choose(Number(btn.dataset.choice))));
+  $('#btn-prev').addEventListener('click', () => state && goTo(state.index - 1));
+  $('#btn-next').addEventListener('click', next);
+  btnFlag.addEventListener('click', toggleFlag);
+  $('#btn-submit').addEventListener('click', openSubmit);
+  $('#btn-review').addEventListener('click', () => {
+    updateNav();
+    reviewDialog.showModal();
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-nav]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      if (reviewDialog.open) reviewDialog.close();
+      goTo(Number(btn.dataset.nav));
+    }),
+  );
+  $('[data-dialog-close]').addEventListener('click', () => submitDialog.close());
+  $('#btn-confirm-submit').addEventListener('click', () => {
+    submitDialog.close();
+    submit(false);
+  });
+  // ปิด dialog เมื่อคลิกพื้นหลัง
+  [reviewDialog, submitDialog].forEach((d) => d.addEventListener('click', (e) => e.target === d && d.close()));
+
+  document.querySelectorAll<HTMLButtonElement>('[data-start]').forEach((btn) => btn.addEventListener('click', () => start(btn.dataset.start === 'timed')));
+
+  bindShortcuts({
+    isActive: () => !!state,
+    onChoice: choose,
+    onNext: next,
+    onPrev: () => state && goTo(state.index - 1),
+  });
+
+  /* ---------- Init ---------- */
+  const saved = getSession('exam') as State | null;
+  if (saved?.order?.length) {
+    const box = $('#setup-resume');
+    box.hidden = false;
+    const left = saved.endAt ? ` · เหลือเวลา ${formatTime(saved.endAt - Date.now())}` : ' · ไม่จับเวลา';
+    box.querySelector('[data-resume-meta]')!.textContent = `ตอบแล้ว ${Object.keys(saved.answers).length}/${saved.order.length} ข้อ${left}`;
+    $('#btn-resume').addEventListener('click', () => {
+      state = saved;
+      enter();
+    });
+    $('#btn-discard').addEventListener('click', () => {
+      if (!confirm('ทิ้งข้อสอบที่ทำค้างไว้? คำตอบทั้งหมดจะหายไป')) return;
+      clearSession('exam');
+      box.hidden = true;
+    });
+  }
+</script>

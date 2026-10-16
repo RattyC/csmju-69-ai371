@@ -1,0 +1,129 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import questions from '../data/questions.json';
+import categories from '../data/categories.json';
+
+const counts = Object.fromEntries(categories.map((c) => [c.name, questions.filter((q) => q.category === c.name).length]));
+---
+
+<BaseLayout title="หน้าแรก" current="home">
+  <section class="anim-in">
+    <p class="eyebrow">AI Final · ปรนัย {questions.length} ข้อ · เกณฑ์ผ่าน 60%</p>
+    <h1 class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">ซ้อมสอบ Final วิชาปัญญาประดิษฐ์</h1>
+    <p class="mt-3 max-w-2xl leading-relaxed text-zinc-600 dark:text-zinc-400">
+      ฝึกทีละข้อพร้อมเฉลยและเหตุผลว่าทำไมตัวเลือกอื่นผิด หรือจำลองสอบจริง 60 ข้อ 180 นาที แล้วดูจุดแข็ง–จุดอ่อนแยกตามหมวด
+    </p>
+  </section>
+
+  <!-- แถบทำต่อ (แสดงเมื่อมี session ค้าง) -->
+  <div id="resume" hidden class="anim-in mt-8 grid gap-3"></div>
+
+  <!-- สถิติย่อ -->
+  <dl id="stats" hidden class="mt-8 grid grid-cols-3 gap-3">
+    <div class="card p-4">
+      <dt class="text-xs text-zinc-500 dark:text-zinc-400">ทำไปแล้ว</dt>
+      <dd data-stat="count" class="mt-1 text-2xl font-semibold tabular-nums"></dd>
+    </div>
+    <div class="card p-4">
+      <dt class="text-xs text-zinc-500 dark:text-zinc-400">คะแนนสูงสุด</dt>
+      <dd data-stat="best" class="mt-1 text-2xl font-semibold tabular-nums"></dd>
+    </div>
+    <div class="card p-4">
+      <dt class="text-xs text-zinc-500 dark:text-zinc-400">ครั้งล่าสุด</dt>
+      <dd data-stat="latest" class="mt-1 text-2xl font-semibold tabular-nums"></dd>
+    </div>
+  </dl>
+
+  <section class="mt-8 grid gap-4 sm:grid-cols-2" aria-label="เลือกโหมด">
+    <a href="/practice/" class="card group flex flex-col p-6 transition-colors duration-200 hover:border-zinc-400 dark:hover:border-zinc-600">
+      <span class="eyebrow">โหมดฝึก</span>
+      <h2 class="mt-2 text-xl font-semibold">ฝึกทีละข้อ</h2>
+      <p class="mt-2 flex-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">เฉลยทันทีหลังตอบ ไม่จับเวลา เลือกฝึกเฉพาะหมวดหรือเฉพาะข้อที่เคยผิดได้</p>
+      <span class="mt-5 text-sm font-medium text-indigo-700 group-hover:underline dark:text-indigo-300">เริ่มฝึก →</span>
+    </a>
+    <a href="/exam/" class="card group flex flex-col p-6 transition-colors duration-200 hover:border-zinc-400 dark:hover:border-zinc-600">
+      <span class="eyebrow">โหมดสอบ</span>
+      <h2 class="mt-2 text-xl font-semibold">จำลองสอบจริง</h2>
+      <p class="mt-2 flex-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">สุ่ม 60 ข้อ เลือกจับเวลา 180 นาทีหรือไม่จับเวลา เฉลยตอนส่งข้อสอบ</p>
+      <span class="mt-5 text-sm font-medium text-indigo-700 group-hover:underline dark:text-indigo-300">เริ่มสอบ →</span>
+    </a>
+  </section>
+
+  <section class="mt-10" aria-labelledby="cat-heading">
+    <div class="flex items-baseline justify-between">
+      <h2 id="cat-heading" class="text-lg font-semibold">ฝึกตามหมวด</h2>
+      <a id="wrong-link" hidden href="/practice/?mode=wrong" class="text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-300"></a>
+    </div>
+    <ul class="mt-4 grid gap-2.5 sm:grid-cols-2">
+      {
+        categories.map((c, i) => (
+          <li>
+            <a
+              href={`/practice/?cat=${c.id}`}
+              class="card flex items-center gap-4 px-4 py-3.5 transition-colors duration-200 hover:border-zinc-400 dark:hover:border-zinc-600"
+            >
+              <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-zinc-100 text-sm font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">{i + 1}</span>
+              <span class="min-w-0 flex-1">
+                <span class="block font-medium">{c.name}</span>
+                <span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">{c.nameTh}</span>
+              </span>
+              <span class="shrink-0 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">{counts[c.name]} ข้อ</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="mt-10 rounded-2xl border border-dashed border-zinc-300 p-5 text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400" aria-label="คีย์ลัด">
+    <p class="font-medium text-zinc-900 dark:text-zinc-100">คีย์ลัด</p>
+    <p class="mt-2 leading-loose">
+      <kbd>1</kbd>–<kbd>4</kbd> เลือกตัวเลือก ·
+      <kbd>Enter</kbd> ข้อถัดไป ·
+      <kbd>←</kbd> <kbd>→</kbd> เปลี่ยนข้อ ·
+      <kbd>Tab</kbd> + <kbd>Space</kbd> เลือกด้วยคีย์บอร์ด
+    </p>
+  </section>
+</BaseLayout>
+
+<script>
+  import { getHistory, getSession } from '../lib/storage.js';
+  import { historyStats, latestWrongIds } from '../lib/analytics.js';
+  import { formatTime } from '../lib/timer.js';
+
+  const history = getHistory();
+  const stats = historyStats(history);
+  if (stats) {
+    const el = document.getElementById('stats')!;
+    el.hidden = false;
+    el.querySelector('[data-stat="count"]')!.textContent = `${stats.count} ครั้ง`;
+    el.querySelector('[data-stat="best"]')!.textContent = `${stats.best}%`;
+    el.querySelector('[data-stat="latest"]')!.textContent = `${stats.latest.percent}%`;
+  }
+
+  const wrong = latestWrongIds(history);
+  if (wrong.length) {
+    const link = document.getElementById('wrong-link')!;
+    link.hidden = false;
+    link.textContent = `ฝึกข้อที่ยังผิด (${wrong.length}) →`;
+  }
+
+  // แสดงปุ่มทำต่อ
+  const resume = document.getElementById('resume')!;
+  const rows: string[] = [];
+  const exam = getSession('exam');
+  if (exam) {
+    const answered = Object.keys(exam.answers ?? {}).length;
+    const left = exam.endAt ? ` · เหลือเวลา ${formatTime(exam.endAt - Date.now())}` : '';
+    rows.push(`<a href="/exam/" class="card flex items-center justify-between gap-4 border-indigo-200 bg-indigo-50/60 px-5 py-4 dark:border-indigo-900 dark:bg-indigo-950/40"><span><span class="block font-medium">มีข้อสอบที่ทำค้างไว้</span><span class="block text-sm text-zinc-600 dark:text-zinc-400">ตอบแล้ว ${answered}/${exam.order.length} ข้อ${left}</span></span><span class="btn-primary">ทำต่อ</span></a>`);
+  }
+  const practice = getSession('practice');
+  if (practice) {
+    const answered = Object.keys(practice.answers ?? {}).length;
+    rows.push(`<a href="/practice/?resume=1" class="card flex items-center justify-between gap-4 px-5 py-4"><span><span class="block font-medium">ฝึกต่อจากเดิม</span><span class="block text-sm text-zinc-600 dark:text-zinc-400">${practice.label ?? 'ชุดฝึก'} · ตอบแล้ว ${answered}/${practice.order.length} ข้อ</span></span><span class="btn-secondary">ฝึกต่อ</span></a>`);
+  }
+  if (rows.length) {
+    resume.innerHTML = rows.join('');
+    resume.hidden = false;
+  }
+</script>

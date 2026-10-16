@@ -1,0 +1,27 @@
+---
+interface Props {
+  id: string;
+  label: string;
+}
+const { id, label } = Astro.props;
+---
+
+<div id={id} data-progress class="w-full">
+  <div class="mb-1.5 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+    <span>{label}</span>
+    <span data-progress-text class="tabular-nums"></span>
+  </div>
+  <div class="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+    <div
+      data-progress-bar
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+      class="h-full rounded-full bg-indigo-600 transition-[width] duration-300 ease-out dark:bg-indigo-400"
+      style="width:0%"
+    >
+    </div>
+  </div>
+</div>

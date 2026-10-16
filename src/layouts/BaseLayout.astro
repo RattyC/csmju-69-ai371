@@ -1,0 +1,135 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  current?: 'home' | 'practice' | 'exam' | 'history' | 'none';
+  wide?: boolean;
+}
+const { title, description = 'ซ้อมทำข้อสอบ Final วิชาปัญญาประดิษฐ์ (AI) แบบปรนัย 60 ข้อ', current = 'none', wide = false } = Astro.props;
+
+const nav = [
+  { href: '/', label: 'หน้าแรก', key: 'home' },
+  { href: '/practice/', label: 'ฝึก', key: 'practice' },
+  { href: '/exam/', label: 'สอบ', key: 'exam' },
+  { href: '/history/', label: 'ประวัติ', key: 'history' },
+];
+const pageTitle = title === 'หน้าแรก' ? 'ซ้อมสอบ AI Final' : `${title} · ซ้อมสอบ AI Final`;
+---
+
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="AI Final" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap"
+    />
+
+    <!-- ตั้งธีมก่อน render เพื่อไม่ให้หน้าจอกะพริบ -->
+    <script is:inline>
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem('aiq:theme'); } catch (e) {}
+        var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', dark);
+      })();
+    </script>
+  </head>
+  <body class="min-h-dvh">
+    <a href="#main" class="sr-only z-50 rounded-lg bg-indigo-600 px-4 py-2 text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3">ข้ามไปเนื้อหาหลัก</a>
+
+    <header class="sticky top-0 z-30 border-b border-zinc-200/80 bg-white/85 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/85">
+      <div class={`mx-auto flex h-14 items-center gap-3 px-4 sm:px-6 ${wide ? 'max-w-6xl' : 'max-w-4xl'}`}>
+        <a href="/" class="flex shrink-0 items-center gap-2 rounded-lg font-semibold tracking-tight" aria-label="ซ้อมสอบ AI Final หน้าแรก">
+          <span aria-hidden="true" class="grid size-7 place-items-center rounded-lg bg-zinc-900 font-mono text-[11px] text-white dark:bg-white dark:text-zinc-900">AI</span>
+          <span class="hidden sm:inline">ซ้อมสอบ Final</span>
+        </a>
+        <nav aria-label="เมนูหลัก" class="ml-auto">
+          <ul class="flex items-center gap-0.5 text-sm">
+            {
+              nav.map((n) => (
+                <li>
+                  <a
+                    href={n.href}
+                    aria-current={current === n.key ? 'page' : undefined}
+                    class="rounded-lg px-2.5 py-1.5 text-zinc-600 transition-colors duration-200 hover:bg-zinc-100 hover:text-zinc-900 aria-[current=page]:font-semibold aria-[current=page]:text-zinc-900 sm:px-3 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 dark:aria-[current=page]:text-white"
+                  >
+                    {n.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+        <button
+          type="button"
+          id="theme-toggle"
+          class="grid size-9 shrink-0 place-items-center rounded-lg text-zinc-600 transition-colors duration-200 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          aria-label="สลับโหมดมืด"
+          aria-pressed="false"
+        >
+          <svg aria-hidden="true" class="size-[18px] dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+          <svg aria-hidden="true" class="hidden size-[18px] dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="main" class={`mx-auto px-4 pt-6 pb-24 sm:px-6 sm:pt-10 ${wide ? 'max-w-6xl' : 'max-w-4xl'}`}>
+      <slot />
+    </main>
+
+    <!-- Toast regions -->
+    <div class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4">
+      <div id="toast-alert" role="alert" class="flex flex-col items-center gap-2"></div>
+      <div id="toast-status" role="status" aria-live="polite" class="flex flex-col items-center gap-2"></div>
+    </div>
+
+    <script>
+      import Lenis from 'lenis';
+      import { getTheme, setTheme } from '../lib/storage.js';
+
+      // Smooth scroll — ปิดอัตโนมัติถ้าผู้ใช้ตั้ง reduce motion
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        window.__lenis = new Lenis({ autoRaf: true, lerp: 0.12 });
+      }
+
+      // Dark mode toggle
+      const btn = document.getElementById('theme-toggle');
+      const sync = () => btn?.setAttribute('aria-pressed', String(document.documentElement.classList.contains('dark')));
+      sync();
+      btn?.addEventListener('click', () => {
+        const dark = !document.documentElement.classList.contains('dark');
+        document.documentElement.classList.toggle('dark', dark);
+        setTheme(dark ? 'dark' : 'light');
+        sync();
+      });
+      // ตามธีมระบบถ้าผู้ใช้ยังไม่เคยเลือกเอง
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!getTheme()) {
+          document.documentElement.classList.toggle('dark', e.matches);
+          sync();
+        }
+      });
+
+      // PWA: ลงทะเบียน service worker เฉพาะตอน production build
+      if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+      }
+    </script>
+  </body>
+</html>
