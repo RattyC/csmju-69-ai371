@@ -1,8 +1,8 @@
 // Service worker: ใช้งานออฟไลน์ได้หลังเปิดเว็บครั้งแรก
 // - หน้า HTML: network-first (ได้เวอร์ชันใหม่เสมอเมื่อออนไลน์) แล้ว fallback เป็น cache
 // - ไฟล์ /_astro/* (มี hash ในชื่อ) และฟอนต์: cache-first
-const CACHE = 'aiq-v1';
-const PAGES = ['/', '/practice/', '/exam/', '/result/', '/review/', '/history/'];
+const CACHE = 'aiq-v2';
+const PAGES = ['/', '/practice/', '/exam/', '/result/', '/review/', '/history/', '/ann/'];
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', (event) => {

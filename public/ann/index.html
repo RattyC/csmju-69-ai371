@@ -1,0 +1,629 @@
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>แบบจำลอง ANN · ซ้อมสอบ AI Final</title><link rel="icon" type="image/svg+xml" href="/icons/icon.svg"><link rel="manifest" href="/manifest.webmanifest"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+Thai:wght@400;600;700&display=swap">
+<style>
+/* Layout: ซ้าย = ปรับค่า + ผังโหนด, ขวา = กราฟฟังก์ชัน, ล่าง = ขั้นตอนคำนวณ + back-prop */
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --fg:#1b2230; --muted:#5d6678; --line:#d9dde6;
+  --accent:#1f6feb; --accent-soft:#dbe8ff; --good:#16803c; --warn:#b4540a; --bad:#c0262d;
+  --font:'Noto Sans Thai',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10141c; --panel:#181e29; --fg:#e6eaf2; --muted:#98a2b8; --line:#2b3446;
+  --accent:#6ea8ff; --accent-soft:#1d2d4d; --good:#4cc77a; --warn:#f0a35e; --bad:#ff7b80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10141c; --panel:#181e29; --fg:#e6eaf2; --muted:#98a2b8; --line:#2b3446;
+  --accent:#6ea8ff; --accent-soft:#1d2d4d; --good:#4cc77a; --warn:#f0a35e; --bad:#ff7b80; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);line-height:1.55;
+  padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.5rem;margin:0;text-wrap:balance}
+h2{font-size:1rem;margin:0 0 10px}
+.sub{color:var(--muted);margin:2px 0 0;font-size:.9rem}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px}
+@media(max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));column-gap:16px}
+.ctrl{display:grid;grid-template-columns:4.6rem minmax(0,1fr) 3.4rem;align-items:center;gap:8px;margin-bottom:6px}
+.ctrl label{font-family:var(--mono);font-size:.85rem;color:var(--muted)}
+.ctrl output{font-family:var(--mono);font-size:.85rem;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.tabs button{font:inherit;font-size:.85rem;padding:5px 12px;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;cursor:pointer}
+.tabs button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.tabs button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--fg);font-family:var(--mono);font-size:11px}
+svg .m{fill:var(--muted)}
+.steps{font-family:var(--mono);font-size:.85rem;display:flex;flex-direction:column;gap:6px;overflow-x:auto}
+.steps div{white-space:nowrap}
+.steps b{color:var(--accent)}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:.78rem;font-family:var(--font)}
+.on{background:color-mix(in srgb,var(--good) 20%,transparent);color:var(--good)}
+.off{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media(max-width:820px){.two{grid-template-columns:minmax(0,1fr)}}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.btns button{font:inherit;font-size:.88rem;padding:7px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+.btns button.sec{background:var(--panel);color:var(--fg);border-color:var(--line)}
+.btns button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+table{border-collapse:collapse;font-family:var(--mono);font-size:.82rem;width:100%}
+h3{font-size:.85rem;margin:8px 0 6px;color:var(--muted);font-weight:600}
+.tw{max-height:340px}
+th,td{padding:3px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+.tw{overflow-x:auto}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.sbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.bar{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .15s}
+.sbody{min-height:170px;font-family:var(--mono);font-size:.85rem}
+.sbody .ttl{font-family:var(--font);font-weight:700;font-size:1rem;margin:6px 0 8px}
+.sbody .ln{padding:2px 0;overflow-x:auto;white-space:nowrap}
+.sbody .res{color:var(--accent);font-weight:600}
+.srcbox{margin-top:14px;border-top:1px dashed var(--line);padding-top:8px}
+.srcbox h4{font-family:var(--font);font-size:.85rem;margin:0 0 6px}
+.src{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.8rem}
+.src td{padding:3px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.src td:nth-child(2){text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tag{display:inline-block;padding:0 8px;border-radius:99px;font-family:var(--font);font-size:.74rem;font-weight:600;margin-right:4px}
+.tag.g{background:color-mix(in srgb,var(--good) 20%,transparent);color:var(--good)}
+.tag.c{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.ovnote{font-family:var(--font);font-size:.82rem;color:var(--warn);margin:4px 0 8px}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:.85rem;margin:8px 0}
+.ph{display:inline-block;padding:1px 10px;border-radius:99px;font-family:var(--font);font-size:.78rem;font-weight:600}
+.ph-f{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.ph-b{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.ph-u{background:color-mix(in srgb,var(--good) 20%,transparent);color:var(--good)}
+.btns button:disabled{opacity:.4;cursor:not-allowed}
+.tabs button:disabled{opacity:.45;cursor:default}
+.arch{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.arow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:var(--mono);font-size:.85rem}
+.arow .nm{width:6.2rem;color:var(--muted)}
+.arow .cnt{min-width:1.6rem;text-align:center;font-weight:600}
+.sm{font:inherit;font-size:.85rem;padding:2px 11px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg);cursor:pointer}
+.sm:disabled{opacity:.35;cursor:not-allowed}
+.sm:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sm.dn{color:var(--bad)}
+details>summary{cursor:pointer;font-weight:700;font-size:1rem;margin-bottom:10px}
+.note{color:var(--muted);font-size:.82rem;margin:8px 0 0}
+</style>
+
+<div class="wrap">
+  <header>
+    <p style="margin:0 0 6px"><a href="/" style="color:var(--accent);text-decoration:none;font-size:.9rem">← กลับหน้าซ้อมสอบ</a></p>
+    <h1>แบบจำลอง ANN ปรับโครงสร้างได้ (มี bias)</h1>
+    <p class="sub">เพิ่มหรือลด layer และจำนวนโหนดได้ที่แผง "โครงสร้างเครือข่าย" แล้วกด "ถัดไป" เพื่อคำนวณทีละขั้น ผังจะเรืองแสงตรงโหนดและเส้นที่กำลังคำนวณ</p>
+  </header>
+
+  <div class="grid">
+    <div class="stack">
+      <section class="panel" aria-label="ผังเครือข่าย">
+        <h2>ผังเครือข่าย <span id="archsum" style="font-weight:400;color:var(--muted);font-size:.85rem"></span></h2>
+        <svg id="net" viewBox="0 0 600 372" role="img" aria-label="ผังเครือข่าย"></svg>
+      </section>
+      <section class="panel" aria-label="คำนวณทีละขั้น">
+        <h2>คำนวณทีละขั้น</h2>
+        <div class="tabs" id="mt" role="group" aria-label="เลือกสูตรย้อนกลับ"><button type="button" data-m="gamma" aria-pressed="true">สูตรอาจารย์ (γ, δ)</button><button type="button" data-m="delta" aria-pressed="false">สูตรสไลด์ (δ)</button></div>
+        <div class="sbar"><div class="bar"><i id="sbar"></i></div><span id="scount"></span></div>
+        <div class="sbody" id="sbody" aria-live="polite"></div>
+        <div class="btns">
+          <button type="button" id="prev" class="sec">◀ ก่อนหน้า</button>
+          <button type="button" id="next">ถัดไป ▶</button>
+          <button type="button" id="first" class="sec">เริ่มใหม่</button>
+          <button type="button" id="last" class="sec">ไปท้ายสุด</button>
+          <button type="button" id="applyStep" style="display:none">นำ weight และ bias ใหม่ไปใช้</button>
+        </div>
+      </section>
+    </div>
+    <div class="stack">
+      <section class="panel" aria-label="โครงสร้างเครือข่าย">
+        <h2>โครงสร้างเครือข่าย</h2>
+        <div class="arch" id="arch"></div>
+        <div class="btns"><button type="button" id="addLayer" class="sec">＋ เพิ่ม Hidden layer</button><button type="button" id="resetArch" class="sec">กลับเป็น 3-2-2-2</button></div>
+        <p class="note">สัญลักษณ์ตามวิชา: x(i) = input · y(j) = hidden (ชั้นถัดไปใช้ u, v, p) · z(k) = output · O(k) = ค่าที่ output ให้ · t(k) = ค่าเป้าหมาย · γ = ค่าความคลาดเคลื่อนของโหนด · η = learning rate</p>
+        <p class="note">Input 1–5 โหนด · Hidden 0–4 ชั้น ชั้นละ 1–5 โหนด · Output 1–4 โหนด ค่าเดิมของ weight และ bias ที่ยังอยู่จะถูกเก็บไว้ ส่วนที่เพิ่มใหม่จะได้ค่าตั้งต้น</p>
+      </section>
+      <section class="panel" aria-label="ตั้งค่า">
+        <h2>ค่าที่ตั้งได้</h2>
+        <div class="cols"><div><h3>Input และ threshold</h3><div id="cIn"></div></div><div><h3>เป้าหมาย t และ learning rate η</h3><div id="cBP"></div></div></div>
+        <div class="tabs" id="rp" role="group" aria-label="ตั้งค่า learning rate"><button type="button" data-r="0.1">η=0.1</button><button type="button" data-r="0.5">0.5</button><button type="button" data-r="1">1</button><button type="button" data-r="2">2</button><button type="button" data-r="5">5</button></div>
+        <h3>Bias ของแต่ละโหนด</h3><div class="cols" id="cB"></div>
+      </section>
+      <section class="panel" aria-label="กราฟฟังก์ชัน">
+        <h2>กราฟ Activation Function</h2>
+        <div class="tabs" id="ft" role="group" aria-label="เลือกฟังก์ชัน">
+          <button type="button" data-f="sigmoid" aria-pressed="true">Sigmoid</button>
+          <button type="button" data-f="step" aria-pressed="false">Binary step</button>
+          <button type="button" data-f="relu" aria-pressed="false">ReLU</button>
+        </div>
+        <svg id="plot" viewBox="0 0 480 290" role="img" aria-label="กราฟ activation พร้อมจุดของทุกโหนด"></svg>
+        <p class="note" id="fnote"></p>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel" aria-label="ค่า weight">
+    <details open><summary id="wsum">Weight</summary><div id="wbox"></div></details>
+  </section>
+
+  <section class="panel" aria-label="สรุปการปรับค่า">
+    <h2>สรุป Δ ที่ได้จาก back-propagation และกราฟ error</h2>
+    <div class="grid">
+      <div>
+        <div class="btns">
+          <button type="button" id="apply">อัปเดต 1 รอบ</button>
+          <button type="button" id="apply10" class="sec">อัปเดต 10 รอบ</button>
+          <button type="button" id="reset" class="sec">รีเซ็ตทั้งหมด</button>
+        </div>
+        <div class="tw"><table id="tbl"></table></div>
+      </div>
+      <div><svg id="err" viewBox="0 0 480 220" role="img" aria-label="กราฟ error ต่อรอบ"></svg></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="เปรียบเทียบ learning rate">
+    <h2>เปรียบเทียบ learning rate η (50 รอบจากค่าปัจจุบัน)</h2>
+    <svg id="cmp" viewBox="0 0 560 260" role="img" aria-label="กราฟ error ของ learning rate ต่างกัน"></svg>
+    <p class="note" id="cmpnote"></p>
+  </section>
+</div>
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i)};
+  var NS='http://www.w3.org/2000/svg',fn='sigmoid';
+  var SUB='₀₁₂₃₄₅₆₇₈₉',HL='yuvp';
+  var LIM={inMin:1,inMax:5,hMin:1,hMax:5,hlMax:4,oMin:1,oMax:4};
+  function clone(o){return JSON.parse(JSON.stringify(o))}
+  function mkW(L,i,j){return Math.round(8*Math.sin(1.7*(i*5+j*3+L*7+1)))/10}
+  function mkDef(){
+    var sz=[3,2,2,2],W=[];
+    for(var L=0;L<3;L++){W[L]=[];for(var i=0;i<sz[L];i++){W[L][i]=[];for(var j=0;j<sz[L+1];j++)W[L][i][j]=mkW(L,i,j)}}
+    return {sizes:sz,x:[1,0.5,0.2],W:W,b:[null,[0.1,-0.1],[0.2,0],[-0.1,0.1]],d:[1,0],r:1,th:0.7};
+  }
+  var OVON=false,OV=[0.1,-0.8,0,0],MODE='gamma',DEF=mkDef(),S=clone(DEF),SZ,NL,NAMES,LAYN,hist=[],stepIdx=0,STEPS=[],sync=[];
+  function f2(v){return v.toFixed(2)}
+  function f3(v){return v.toFixed(3)}
+  function f4(v){return v.toFixed(4)}
+  function sig(n){return 1/(1+Math.exp(-n))}
+  function el(t,a,x){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(x!==undefined)e.textContent=x;return e}
+  function actF(n){return fn==='sigmoid'?sig(n):fn==='step'?(n>S.th?1:0):Math.max(0,n)}
+
+  function adopt(){
+    SZ=S.sizes;NL=SZ.length-1;
+    NAMES=[];LAYN=[];
+    for(var l=0;l<=NL;l++){
+      var p=l===0?'x':l===NL?'z':HL[l-1];
+      LAYN.push(l===0?'Input':l===NL?'Output':'Hidden '+HL[l-1]);
+      var a=[];for(var k=0;k<SZ[l];k++)a.push(p+SUB[k+1]);
+      NAMES.push(a);
+    }
+    hist=[];stepIdx=0;
+    buildControls();
+  }
+
+  /* ---------- core maths ---------- */
+  function run(){
+    var o=[S.x.slice()],n=[null];
+    for(var l=0;l<NL;l++){
+      var nn=[],oo=[];
+      for(var j=0;j<SZ[l+1];j++){var sum=S.b[l+1][j];for(var i=0;i<SZ[l];i++)sum+=o[l][i]*S.W[l][i][j];nn.push(sum);oo.push(sig(sum))}
+      n.push(nn);o.push(oo);
+    }
+    return {o:o,n:n};
+  }
+  function err(out){var e=0;for(var k=0;k<out.length;k++)e+=(S.d[k]-out[k])*(S.d[k]-out[k]);return 0.5*e}
+  function back(){
+    var F=run(),o=F.o,r=S.r,dl=[];
+    dl[NL]=o[NL].map(function(v,k){return S.d[k]-v});
+    for(var l=NL-1;l>=1;l--){
+      dl[l]=[];
+      for(var j=0;j<SZ[l];j++){var t=0;for(var k=0;k<SZ[l+1];k++)t+=S.W[l][j][k]*o[l+1][k]*(1-o[l+1][k])*dl[l+1][k];dl[l][j]=t}
+    }
+    var gm=[];
+    gm[NL]=o[NL].map(function(v,k){return OVON?(OV[k]||0):-v*(1-v)*(S.d[k]-v)});
+    for(var lg=NL-1;lg>=1;lg--){
+      gm[lg]=[];
+      for(var jg=0;jg<SZ[lg];jg++){var tg=0;for(var kg=0;kg<SZ[lg+1];kg++)tg+=S.W[lg][jg][kg]*gm[lg+1][kg];gm[lg][jg]=o[lg][jg]*(1-o[lg][jg])*tg}
+    }
+    var dW=[],dB=[null];
+    for(var L=0;L<NL;L++){
+      dW[L]=[];
+      for(var i=0;i<SZ[L];i++){dW[L][i]=[];for(var j2=0;j2<SZ[L+1];j2++)dW[L][i][j2]=-r*gm[L+1][j2]*o[L][i]}
+      dB[L+1]=[];for(var j3=0;j3<SZ[L+1];j3++)dB[L+1][j3]=-r*gm[L+1][j3];
+    }
+    return {F:F,dl:dl,gm:gm,dW:dW,dB:dB,E:err(o[NL])};
+  }
+
+  /* ---------- structure editing ---------- */
+  function reshape(newSizes,keep){
+    var old=S,NLn=newSizes.length-1,ns={sizes:newSizes,r:old.r,th:old.th,x:[],W:[],b:[null],d:[]};
+    for(var i0=0;i0<newSizes[0];i0++)ns.x[i0]=i0<old.x.length?old.x[i0]:0.5;
+    for(var L=0;L<NLn;L++){
+      ns.W[L]=[];
+      for(var i=0;i<newSizes[L];i++){
+        ns.W[L][i]=[];
+        for(var j=0;j<newSizes[L+1];j++){
+          var a=keep[L],b2=keep[L+1],v;
+          if(a>=0&&b2===a+1&&old.W[a]&&old.W[a][i]&&old.W[a][i][j]!==undefined)v=old.W[a][i][j];else v=mkW(L,i,j);
+          ns.W[L][i][j]=v;
+        }
+      }
+    }
+    for(var l=1;l<=NLn;l++){
+      ns.b[l]=[];
+      for(var k=0;k<newSizes[l];k++){var ol=keep[l];ns.b[l][k]=(ol>=0&&old.b[ol]&&old.b[ol][k]!==undefined)?old.b[ol][k]:0}
+    }
+    var lastOld=old.sizes.length-1;
+    for(var q=0;q<newSizes[NLn];q++)ns.d[q]=(keep[NLn]===lastOld&&old.d[q]!==undefined)?old.d[q]:(q===0?1:0);
+    S=ns;adopt();update();
+  }
+  function ident(){var a=[];for(var i=0;i<SZ.length;i++)a.push(i);return a}
+  function changeNodes(l,delta){
+    var ns=SZ.slice(),lo=l===0?LIM.inMin:l===NL?LIM.oMin:LIM.hMin,hi=l===0?LIM.inMax:l===NL?LIM.oMax:LIM.hMax;
+    var v=ns[l]+delta;if(v<lo||v>hi)return;ns[l]=v;reshape(ns,ident());
+  }
+  function addLayer(){
+    if(NL-1>=LIM.hlMax)return;
+    var p=SZ.length-1,ns=SZ.slice(0,p).concat([2],[SZ[p]]),keep=ident().slice(0,p).concat([-1],[p]);
+    reshape(ns,keep);
+  }
+  function removeLayer(l){
+    var ns=SZ.slice(),keep=ident();ns.splice(l,1);keep.splice(l,1);reshape(ns,keep);
+  }
+  function drawArch(){
+    var box=$('arch');box.innerHTML='';
+    for(var l=0;l<=NL;l++)(function(l){
+      var lo=l===0?LIM.inMin:l===NL?LIM.oMin:LIM.hMin,hi=l===0?LIM.inMax:l===NL?LIM.oMax:LIM.hMax;
+      var r=document.createElement('div');r.className='arow';
+      r.innerHTML='<span class="nm">'+LAYN[l]+'</span><button type="button" class="sm" aria-label="ลดโหนด '+LAYN[l]+'">−</button><span class="cnt">'+SZ[l]+'</span><button type="button" class="sm" aria-label="เพิ่มโหนด '+LAYN[l]+'">＋</button><span style="color:var(--muted)">โหนด</span>';
+      var bs=r.querySelectorAll('button');
+      bs[0].disabled=SZ[l]<=lo;bs[1].disabled=SZ[l]>=hi;
+      bs[0].addEventListener('click',function(){changeNodes(l,-1)});
+      bs[1].addEventListener('click',function(){changeNodes(l,1)});
+      if(l>0&&l<NL){
+        var x=document.createElement('button');x.type='button';x.className='sm dn';x.textContent='✕ ลบ layer';x.setAttribute('aria-label','ลบ '+LAYN[l]);
+        x.addEventListener('click',function(){removeLayer(l)});r.appendChild(x);
+      }
+      box.appendChild(r);
+    })(l);
+    $('addLayer').disabled=(NL-1)>=LIM.hlMax;
+    var nw=0,nb=0;for(var L=0;L<NL;L++)nw+=SZ[L]*SZ[L+1];for(var l2=1;l2<=NL;l2++)nb+=SZ[l2];
+    $('archsum').textContent='('+SZ.join('-')+' · weight '+nw+' · bias '+nb+')';
+    $('wsum').textContent='Weight ทั้ง '+nw+' เส้น';
+  }
+
+  /* ---------- controls ---------- */
+  function mk(box,id,label,min,max,get,set){
+    var d=document.createElement('div');d.className='ctrl';
+    d.innerHTML='<label for="'+id+'">'+label+'</label><input id="'+id+'" type="range" min="'+min+'" max="'+max+'" step="0.01"><output></output>';
+    box.appendChild(d);
+    var inp=d.querySelector('input'),out=d.querySelector('output');
+    inp.addEventListener('input',function(){set(parseFloat(inp.value));hist=[];update()});
+    sync.push(function(){var v=get();inp.value=v;out.textContent=f2(v)});
+  }
+  function buildControls(){
+    sync=[];
+    ['cIn','cBP','cB','wbox'].forEach(function(i){$(i).innerHTML=''});
+    S.x.forEach(function(_,i){mk($('cIn'),'x'+i,NAMES[0][i],-2,2,function(){return S.x[i]},function(v){S.x[i]=v})});
+    mk($('cIn'),'th','θ (กราฟ step)',-2,3,function(){return S.th},function(v){S.th=v});
+    S.d.forEach(function(_,k){mk($('cBP'),'d'+k,'t '+NAMES[NL][k],0,1,function(){return S.d[k]},function(v){S.d[k]=v})});
+    var ovd=document.createElement('div');
+    ovd.innerHTML='<label class="chk"><input type="checkbox" id="ovon"><span>โจทย์ให้ γ ของ output มาเลย (ไม่คำนวณจาก t และ O)</span></label><div id="ovs"></div>';
+    $('cBP').appendChild(ovd);
+    $('ovon').checked=OVON;
+    $('ovs').style.display=OVON?'block':'none';
+    $('ovon').addEventListener('change',function(){OVON=this.checked;if(OVON)setMode('gamma');hist=[];update()});
+    S.d.forEach(function(_,k){mk($('ovs'),'ov'+k,'γ '+NAMES[NL][k],-1,1,function(){return OV[k]||0},function(v){OV[k]=v})});
+    mk($('cBP'),'rr','η (learning rate)',0.1,5,function(){return S.r},function(v){S.r=v});
+    for(var l=1;l<=NL;l++)for(var k=0;k<SZ[l];k++)(function(l,k){
+      mk($('cB'),'b'+l+k,'b '+NAMES[l][k],-3,3,function(){return S.b[l][k]},function(v){S.b[l][k]=v});
+    })(l,k);
+    for(var L=0;L<NL;L++){
+      var h=document.createElement('h3');h.textContent=LAYN[L]+' → '+LAYN[L+1]+' ('+(SZ[L]*SZ[L+1])+' เส้น)';$('wbox').appendChild(h);
+      var cols=document.createElement('div');cols.className='cols';$('wbox').appendChild(cols);
+      for(var j=0;j<SZ[L+1];j++){
+        var col=document.createElement('div');cols.appendChild(col);
+        for(var i=0;i<SZ[L];i++)(function(L,i,j,col){
+          mk(col,'w'+L+'_'+i+'_'+j,NAMES[L][i]+'→'+NAMES[L+1][j],-3,3,function(){return S.W[L][i][j]},function(v){S.W[L][i][j]=v});
+        })(L,i,j,col);
+      }
+    }
+  }
+
+  /* ---------- steps ---------- */
+  function buildSteps(){
+    var B=back(),F=B.F,o=F.o,st=[],off=[0,0],total=0,dm={};
+    for(var q=1;q<=NL;q++){off[q]=total;total+=SZ[q]}
+    function inE(l,k){var a=[];for(var i=0;i<SZ[l-1];i++)a.push((l-1)+','+i+','+k);return a}
+    function outE(l,j){var a=[];for(var k=0;k<SZ[l+1];k++)a.push(l+','+j+','+k);return a}
+    var NO={},GV=MODE==='gamma';
+    function giv(t){return '<span class="tag g">โจทย์ให้</span>'+t}
+    function tg(n,t){return '<span class="tag c">คำนวณ ขั้น #'+n+'</span>'+(t||'')}
+    function oRow(l,i){return l===0?[NAMES[0][i],f3(S.x[i]),giv('ค่า input ที่ตั้งในช่อง Input')]:[NAMES[l][i],f3(o[l][i]),tg(NO['o'+l+','+i],'ค่าออกของโหนดนี้ (หลัง sigmoid)')]}
+    function wRow(L,i,j){return ['w('+NAMES[L][i]+'→'+NAMES[L+1][j]+')',f3(S.W[L][i][j]),giv('weight ของเส้นนี้')]}
+    function tRow(k){return ['t('+NAMES[NL][k]+')',f2(S.d[k]),giv('ค่าเป้าหมายของ output')]}
+    function etaRow(){return ['η',f2(S.r),giv('learning rate')]}
+    function gRow(l,k){var v=GV?B.gm[l][k]:B.dl[l][k];return [(GV?(l===NL?'γ':'δ'):'δ')+'('+NAMES[l][k]+')',f4(v),(OVON&&l===NL)?giv('ตั้งในช่อง γ ของ output'):tg(NO['g'+l+','+k],(l===NL?'ค่าที่คำนวณจาก O และ t':'ค่าที่คำนวณจากชั้นถัดไป'))]}
+    function uniq(rows){var seen={},a=[];rows.forEach(function(r){if(!seen[r[0]]){seen[r[0]]=1;a.push(r)}});return a}
+    function base(x){x.dm=clone(dm);if(x.fwd===undefined)x.fwd=total;if(x.sum===undefined)x.sum=-1;if(!x.hn)x.hn=[];if(!x.he)x.he=[];return x}
+    st.push(base({ph:'f',phn:'เริ่มต้น',title:'ค่าตั้งต้น',fwd:0,lines:[
+      ['x = ('+S.x.map(f2).join(', ')+')   t = ('+S.d.map(f2).join(', ')+')   η = '+f2(S.r)],
+      ['โครงสร้าง '+SZ.join('-')+' ทุกโหนดคำนวณ 2 ขั้น: <b>Σ = Σ(o·w) + b</b> แล้ว <b>o = 1/(1+e⁻ᶲ)</b>'],['สูตรย้อนกลับ: '+(MODE==='gamma'?'<b>สูตรอาจารย์</b> γ ที่ output, δ ที่ hidden ใช้ Δw = η·(γ หรือ δ)·y แล้ว w ใหม่ = w − Δw':'<b>δ (สูตรสไลด์)</b> ใช้ Δw = η·o·o(1−o)·δ ปรับ w')+' ให้ผลตัวเลขเท่ากัน'],
+      ['กด "ถัดไป" เพื่อเริ่ม Forward จากโหนด '+NAMES[1][0]]]}));
+    for(var l=1;l<=NL;l++)for(var k=0;k<SZ[l];k++){
+      var idx=off[l]+k,nm=NAMES[l][k],terms=[];
+      for(var i=0;i<SZ[l-1];i++)terms.push('('+f3(o[l-1][i])+'×'+f3(S.W[l-1][i][k])+')');
+      NO['s'+l+','+k]=st.length+1;
+      var sr=[];for(var i0=0;i0<SZ[l-1];i0++){sr.push(oRow(l-1,i0));sr.push(wRow(l-1,i0,k))}
+      sr.push(['b('+nm+')',f3(S.b[l][k]),giv('bias ของโหนดนี้ (ตั้งในช่อง Bias)')]);
+      st.push(base({ph:'f',phn:'Forward',title:'Σ ของโหนด '+nm,fwd:idx,sum:idx,hn:[l+','+k],he:inE(l,k),src:sr,lines:[
+        ['Σ = Σ(o·w) + b'],['Σ = '+terms.join(' + ')+' + ('+f3(S.b[l][k])+')'],['Σ = <span class="res">'+f3(F.n[l][k])+'</span>'],['<span style="color:var(--muted)">หมายเหตุ: เครื่องใช้ค่าเต็มทุกหลัก จอแสดงปัด 3 ตำแหน่ง ผลคูณที่คำนวณมืออาจต่างได้ราว ±0.001</span>']]}));
+      var e=Math.exp(-F.n[l][k]);
+      NO['o'+l+','+k]=st.length+1;
+      st.push(base({ph:'f',phn:'Forward',title:'Sigmoid ของโหนด '+nm,fwd:idx+1,hn:[l+','+k],src:[['Σ('+nm+')',f3(F.n[l][k]),tg(NO['s'+l+','+k],'ผลรวมของโหนดนี้')],['e','2.71828','ค่าคงที่']],lines:[
+        ['① e⁻ᶲ = e^('+f3(-F.n[l][k])+') = '+f4(e)],['② 1 + e⁻ᶲ = '+f4(1+e)],
+        ['③ '+(l===NL?'O':'y')+' = 1 ÷ '+f4(1+e)+' = <span class="res">'+f3(o[l][k])+'</span>']]}));
+    }
+    var el_=[];for(var k2=0;k2<SZ[NL];k2++)el_.push('('+f2(S.d[k2])+'−'+f3(o[NL][k2])+')²');
+    var er=[];for(var ke=0;ke<SZ[NL];ke++){er.push(tRow(ke));er.push(oRow(NL,ke))}
+    st.push(base({ph:'f',phn:'Error',title:'คำนวณ error รวม',src:er,lines:[
+      ['E = ½ Σ (t − O)²'],['E = ½ × ['+el_.join(' + ')+']'],['E = <span class="res">'+f4(B.E)+'</span>']]}));
+    var G=MODE==='gamma',sy=G?'γ':'δ';
+    for(var k3=0;k3<SZ[NL];k3++){
+      var ok=o[NL][k3];dm[NL+','+k3]=G?B.gm[NL][k3]:B.dl[NL][k3];
+      NO['g'+NL+','+k3]=st.length+1;
+      var ol=OVON?[['γ('+NAMES[NL][k3]+') = ค่าที่โจทย์กำหนดให้ <span class="res">'+f4(B.gm[NL][k3])+'</span>'],['(ไม่ได้คำนวณจาก O และ t)'+(Math.abs(OV[k3]||0)>0.15?' — ถ้าคำนวณจากสูตร γ = O(−(1−O)(t−O)) เมื่อ t อยู่ 0–1 จะได้ขนาดไม่เกินราว 0.15 ค่าขนาดนี้จึงต้องเป็นค่าที่โจทย์ให้มา':'')]]:G?[['γ = O · ( −(1−O) · (t − O) )'],['γ = '+f3(ok)+' × ( −(1−'+f3(ok)+') × ('+f2(S.d[k3])+' − '+f3(ok)+') ) = <span class="res">'+f4(B.gm[NL][k3])+'</span>']]
+        :[['δ = t − O'],['δ = '+f2(S.d[k3])+' − '+f3(ok)+' = <span class="res">'+f4(B.dl[NL][k3])+'</span>'],['o(1−o) = '+f3(ok)+' × '+f3(1-ok)+' = '+f4(ok*(1-ok))]];
+      st.push(base({ph:'b',phn:'Backward',title:sy+' ของ output '+NAMES[NL][k3],hn:[NL+','+k3],he:inE(NL,k3),src:OVON?[gRow(NL,k3)]:[oRow(NL,k3),tRow(k3)],lines:ol}));
+    }
+    for(var l2=NL-1;l2>=1;l2--)for(var j=0;j<SZ[l2];j++){
+      var terms2=[],oh=o[l2][j];
+      for(var q2=0;q2<SZ[l2+1];q2++){
+        var oq=o[l2+1][q2];
+        terms2.push(G?'('+f3(S.W[l2][j][q2])+' × '+f4(B.gm[l2+1][q2])+')':'('+f3(S.W[l2][j][q2])+' × '+f4(oq*(1-oq))+' × '+f4(B.dl[l2+1][q2])+')');
+      }
+      dm[l2+','+j]=G?B.gm[l2][j]:B.dl[l2][j];
+      NO['g'+l2+','+j]=st.length+1;
+      var hs=[oRow(l2,j)];for(var q3=0;q3<SZ[l2+1];q3++){hs.push(wRow(l2,j,q3));hs.push(gRow(l2+1,q3));if(!G)hs.push(oRow(l2+1,q3))}
+      var nx=(l2===NL-1)?'γ':'δ',hl=G?[['δ(i) = y(i)·(1−y(i)) · Σ ( w(j,k) · '+nx+'(k) )   (y = ค่าออกของโหนดนี้, '+nx+' = ค่าคลาดเคลื่อนของชั้นถัดไป)'],['δ = '+f3(oh)+'×'+f3(1-oh)+' × ['+terms2.join(' + ')+']'],['δ = <span class="res">'+f4(B.gm[l2][j])+'</span>']]
+        :[['δ = Σ w · o(1−o) · δ ของชั้นถัดไป'],['δ = '+terms2.join(' + ')],['δ = <span class="res">'+f4(B.dl[l2][j])+'</span>']];
+      st.push(base({ph:'b',phn:'Backward',title:'δ ของโหนด '+NAMES[l2][j],hn:[l2+','+j],he:outE(l2,j),src:hs,lines:hl}));
+    }
+    for(var L=NL-1;L>=0;L--){
+      var ln=[[G?'Δw = η · (γ หรือ δ ของโหนดปลายเส้น) · y(ต้นเส้น)   |   Δb = η · (γ หรือ δ)   (y = ค่าออกของโหนดต้นเส้น)':'Δw = η · ค่าออก(ต้นเส้น) · o(1−o)(ปลายเส้น) · δ(ปลายเส้น)   |   Δb = η · o(1−o) · δ']],he=[];
+      for(var j4=0;j4<SZ[L+1];j4++){
+        var oj=o[L+1][j4];
+        for(var i4=0;i4<SZ[L];i4++){
+          he.push(L+','+i4+','+j4);
+          ln.push([G?'Δw('+NAMES[L][i4]+'→'+NAMES[L+1][j4]+') = '+f2(S.r)+' × ('+f4(B.gm[L+1][j4])+') × '+f3(o[L][i4])+' = <span class="res">'+f4(-B.dW[L][i4][j4])+'</span>'
+            :'Δw('+NAMES[L][i4]+'→'+NAMES[L+1][j4]+') = '+f2(S.r)+'×'+f3(o[L][i4])+'×'+f4(oj*(1-oj))+'×'+f4(B.dl[L+1][j4])+' = <span class="res">'+f4(B.dW[L][i4][j4])+'</span>']);
+        }
+        ln.push([G?'Δb('+NAMES[L+1][j4]+') = '+f2(S.r)+' × ('+f4(B.gm[L+1][j4])+') = <span class="res">'+f4(-B.dB[L+1][j4])+'</span>'
+          :'Δb('+NAMES[L+1][j4]+') = '+f2(S.r)+'×'+f4(oj*(1-oj))+'×'+f4(B.dl[L+1][j4])+' = <span class="res">'+f4(B.dB[L+1][j4])+'</span>']);
+      }
+      var ds=[etaRow()];for(var jj=0;jj<SZ[L+1];jj++){ds.push(gRow(L+1,jj));if(!G)ds.push(oRow(L+1,jj))}for(var ii=0;ii<SZ[L];ii++)ds.push(oRow(L,ii));
+      NO['d'+L]=st.length+1;
+      st.push(base({ph:'b',phn:'Backward',title:'Δw และ Δb ชั้น '+LAYN[L]+' → '+LAYN[L+1],he:he,src:uniq(ds),lines:ln}));
+    }
+    var fl=[[G?'w ใหม่ = w − Δw   |   b ใหม่ = b − Δb   (Δ ตามสูตรอาจารย์ = η·γ·y)':'w ใหม่ = w + Δw   |   b ใหม่ = b + Δb']],he2=[];
+    for(var L2=0;L2<NL;L2++)for(var j5=0;j5<SZ[L2+1];j5++){
+      for(var i5=0;i5<SZ[L2];i5++){
+        he2.push(L2+','+i5+','+j5);
+        fl.push([NAMES[L2][i5]+'→'+NAMES[L2+1][j5]+': '+f3(S.W[L2][i5][j5])+(G?' − ('+f4(-B.dW[L2][i5][j5])+')':' + '+f4(B.dW[L2][i5][j5]))+' = <span class="res">'+f3(S.W[L2][i5][j5]+B.dW[L2][i5][j5])+'</span>']);
+      }
+      fl.push(['b '+NAMES[L2+1][j5]+': '+f3(S.b[L2+1][j5])+(G?' − ('+f4(-B.dB[L2+1][j5])+')':' + '+f4(B.dB[L2+1][j5]))+' = <span class="res">'+f3(S.b[L2+1][j5]+B.dB[L2+1][j5])+'</span>']);
+    }
+    var dn=[];for(var Lu=NL-1;Lu>=0;Lu--)dn.push(NO['d'+Lu]);
+    var us=[['w และ b เดิม','—',giv('ค่าใน Weight และ Bias ก่อนปรับ')],['Δw และ Δb','—',tg(dn.join(', #'),'')]];
+    st.push(base({src:us,ph:'u',phn:'Update',title:'ได้ weight และ bias ใหม่ (จบ 1 รอบ)',he:he2,lines:fl,last:true}));
+    return st;
+  }
+
+  /* ---------- network drawing ---------- */
+  function drawNet(F,v){
+    var s=$('net');s.innerHTML='';
+    var maxN=Math.max.apply(null,SZ),VH=Math.max(310,100+(maxN-1)*96+80),VW=Math.max(600,100+NL*150);
+    s.setAttribute('viewBox','0 0 '+VW+' '+VH);
+    var XS=[];for(var q=0;q<=NL;q++)XS.push(44+q*(VW-44-80)/NL);
+    function ys(n){var c=(VH-40)/2,a=[];for(var i=0;i<n;i++)a.push(c+(i-(n-1)/2)*96);return a}
+    var TT=[0.22,0.5,0.78],off=[0,0],tot=0;
+    for(var z=1;z<=NL;z++){off[z]=tot;tot+=SZ[z]}
+    var he={},hn={};v.he.forEach(function(k){he[k]=1});v.hn.forEach(function(k){hn[k]=1});
+    for(var L=0;L<NL;L++){
+      var rs=L===0?18:26,re=26,ya=ys(SZ[L]),yb=ys(SZ[L+1]);
+      for(var i=0;i<SZ[L];i++)for(var j=0;j<SZ[L+1];j++){
+        var w=S.W[L][i][j],x1=XS[L]+rs,y1=ya[i],x2=XS[L+1]-re,y2=yb[j],on=he[L+','+i+','+j];
+        s.appendChild(el('line',{x1:x1,y1:y1,x2:x2,y2:y2,stroke:on?'var(--warn)':(w>=0?'var(--accent)':'var(--bad)'),'stroke-width':on?4.5:1+Math.min(3,Math.abs(w))*1.6,'stroke-linecap':'round',opacity:on?1:.5}));
+        var t=TT[(i+2*j)%3];
+        s.appendChild(el('text',{x:x1+(x2-x1)*t,y:y1+(y2-y1)*t+3,'text-anchor':'middle',style:'font-size:9.5px;paint-order:stroke;stroke:var(--panel);stroke-width:3px'},f2(w)));
+      }
+    }
+    for(var l=0;l<=NL;l++){
+      var yy=ys(SZ[l]);
+      for(var k=0;k<SZ[l];k++){
+        var cx=XS[l],cy=yy[k];
+        if(l===0){
+          s.appendChild(el('circle',{cx:cx,cy:cy,r:18,fill:'var(--panel)',stroke:'var(--line)','stroke-width':2}));
+          s.appendChild(el('text',{x:cx,y:cy-3,'text-anchor':'middle'},NAMES[0][k]));
+          s.appendChild(el('text',{x:cx,y:cy+9,'text-anchor':'middle',class:'m'},f2(S.x[k])));
+          continue;
+        }
+        var idx=off[l]+k,full=idx<v.fwd,part=idx===v.sum,o=F.o[l][k];
+        var kk=full?Math.round(o*60):0,hi=hn[l+','+k];
+        s.appendChild(el('circle',{cx:cx,cy:cy,r:26,fill:'color-mix(in srgb,var(--accent) '+kk+'%,var(--panel))',stroke:hi?'var(--warn)':'var(--accent)','stroke-width':hi?4.5:2,'stroke-dasharray':(full||part)?'none':'4 3'}));
+        s.appendChild(el('text',{x:cx,y:cy-8,'text-anchor':'middle',style:'font-weight:600'},NAMES[l][k]));
+        s.appendChild(el('text',{x:cx,y:cy+3,'text-anchor':'middle',class:'m',style:'font-size:9.5px'},(full||part)?'Σ='+f2(F.n[l][k]):'Σ=…'));
+        s.appendChild(el('text',{x:cx,y:cy+15,'text-anchor':'middle',style:'font-size:10px'},(l===NL?'O':'y')+'='+(full?f3(o):'…')));
+        s.appendChild(el('text',{x:cx,y:cy-32,'text-anchor':'middle',class:'m',style:'font-size:9.5px'},'b='+f2(S.b[l][k])));
+        var dv=v.dm[l+','+k];
+        if(dv!==undefined)s.appendChild(el('text',{x:cx,y:cy+42,'text-anchor':'middle',style:'fill:var(--warn);font-weight:600;font-size:10px'},(MODE==='gamma'&&l===NL?'γ=':'δ=')+f4(dv)));
+        if(l===NL)s.appendChild(el('text',{x:cx+31,y:cy+4,style:'fill:var(--warn);font-weight:600'},'t='+f2(S.d[k])));
+      }
+    }
+    LAYN.forEach(function(t,i){s.appendChild(el('text',{x:XS[i],y:VH-8,'text-anchor':'middle',class:'m'},t))});
+  }
+
+  function drawStep(F){
+    var st=STEPS[stepIdx];
+    drawNet(F,st);
+    var h='<span class="ph ph-'+st.ph+'">'+st.phn+'</span><div class="ttl">'+st.title+'</div>';
+    st.lines.forEach(function(l){h+='<div class="ln">'+l[0]+'</div>'});
+    if(st.src&&st.src.length){h+='<div class="srcbox"><h4>ตัวแปรในขั้นนี้มาจากไหน</h4><table class="src">';st.src.forEach(function(r){h+='<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>'});h+='</table></div>'}
+    $('sbody').innerHTML=h;
+    $('scount').textContent='ขั้น '+(stepIdx+1)+' / '+STEPS.length;
+    $('sbar').style.width=((stepIdx+1)/STEPS.length*100)+'%';
+    $('prev').disabled=stepIdx===0;$('first').disabled=stepIdx===0;
+    $('next').disabled=stepIdx===STEPS.length-1;$('last').disabled=stepIdx===STEPS.length-1;
+    $('applyStep').style.display=st.last?'inline-block':'none';
+  }
+
+  /* ---------- plot ---------- */
+  var PC=['var(--warn)','var(--good)','var(--bad)','var(--muted)'];
+  function drawPlot(F){
+    var s=$('plot');s.innerHTML='';
+    var L=44,R=464,T=14,B=250,W=R-L,H=B-T,xmin=-6,xmax=6,ymin,ymax;
+    if(fn==='relu'){ymin=-0.5;ymax=6}else{ymin=-0.1;ymax=1.1}
+    function X(v){return L+(v-xmin)/(xmax-xmin)*W}
+    function Y(v){return B-(v-ymin)/(ymax-ymin)*H}
+    for(var gx=-6;gx<=6;gx+=2){
+      s.appendChild(el('line',{x1:X(gx),y1:T,x2:X(gx),y2:B,stroke:'var(--line)','stroke-width':gx===0?1.5:.5}));
+      s.appendChild(el('text',{x:X(gx),y:B+14,'text-anchor':'middle',class:'m'},String(gx)));
+    }
+    (fn==='relu'?[0,2,4,6]:[0,0.25,0.5,0.75,1]).forEach(function(g){
+      s.appendChild(el('line',{x1:L,y1:Y(g),x2:R,y2:Y(g),stroke:'var(--line)','stroke-width':g===0?1.5:.5}));
+      s.appendChild(el('text',{x:L-6,y:Y(g)+4,'text-anchor':'end',class:'m'},String(g)));
+    });
+    s.appendChild(el('text',{x:R,y:B+28,'text-anchor':'end',class:'m'},'Σ = Σ(o·w)+b'));
+    var d='',i,v;
+    if(fn==='step'){
+      var tx=Math.max(xmin,Math.min(xmax,S.th));
+      d='M'+X(xmin)+' '+Y(0)+' L'+X(tx)+' '+Y(0)+' M'+X(tx)+' '+Y(1)+' L'+X(xmax)+' '+Y(1);
+      s.appendChild(el('line',{x1:X(tx),y1:Y(0),x2:X(tx),y2:Y(1),stroke:'var(--muted)','stroke-dasharray':'3 4'}));
+      s.appendChild(el('text',{x:X(tx)+4,y:Y(0.5),class:'m'},'θ='+f2(S.th)));
+    }else{
+      for(i=0;i<=240;i++){v=xmin+12*i/240;d+=(i?'L':'M')+X(v).toFixed(1)+' '+Y(fn==='sigmoid'?sig(v):Math.max(0,v)).toFixed(1)+' '}
+    }
+    s.appendChild(el('path',{d:d,fill:'none',stroke:'var(--accent)','stroke-width':3,'stroke-linejoin':'round'}));
+    for(var l=1;l<=NL;l++){
+      var col=PC[(l-1)%PC.length];
+      s.appendChild(el('text',{x:L+6+(l-1)*72,y:T+10,style:'fill:'+col},'● '+(l===NL?'Out':HL[l-1])));
+      for(var k=0;k<SZ[l];k++){
+        var n=F.n[l][k],nc=Math.max(xmin,Math.min(xmax,n)),oc=Math.max(ymin,Math.min(ymax,actF(n)));
+        s.appendChild(el('line',{x1:X(nc),y1:B,x2:X(nc),y2:Y(oc),stroke:col,'stroke-dasharray':'3 3','stroke-width':1}));
+        s.appendChild(el('circle',{cx:X(nc),cy:Y(oc),r:5,fill:col,stroke:'var(--panel)','stroke-width':2}));
+        var right=X(nc)>R-40;
+        s.appendChild(el('text',{x:X(nc)+(right?-7:7),y:Y(oc)+(k%2?14:-6),'text-anchor':right?'end':'start',style:'font-weight:600;font-size:10px'},NAMES[l][k]));
+      }
+    }
+    $('fnote').textContent={
+      sigmoid:'Sigmoid: o = 1/(1+e⁻ᶲ) อยู่ระหว่าง 0 ถึง 1 ผังเครือข่ายและการคำนวณทีละขั้นใช้ Sigmoid เสมอ',
+      step:'Binary step: Σ > θ ได้ 1 ไม่เช่นนั้นได้ 0 ไม่มีความชัน จึงใช้ back-propagation ไม่ได้ (กราฟนี้ใช้ดูอย่างเดียว ผังยังใช้ Sigmoid)',
+      relu:'ReLU: o = max(0, Σ) ค่าติดลบเป็น 0 (ไม่มีในสไลด์) กราฟนี้ใช้ดูอย่างเดียว ผังยังใช้ Sigmoid'
+    }[fn];
+  }
+
+  function showTable(B){
+    var sg=MODE==='gamma'?-1:1,t='<tr><th>ค่า</th><th>เดิม</th><th>Δ'+(sg<0?' (η·γ·y)':'')+'</th><th>ใหม่ ('+(sg<0?'w − Δ':'w + Δ')+')</th></tr>';
+    for(var L=0;L<NL;L++)for(var j=0;j<SZ[L+1];j++){
+      for(var i=0;i<SZ[L];i++){var w=S.W[L][i][j],dw=B.dW[L][i][j];t+='<tr><td>w '+NAMES[L][i]+'→'+NAMES[L+1][j]+'</td><td>'+f3(w)+'</td><td>'+f4(sg*dw)+'</td><td>'+f3(w+dw)+'</td></tr>'}
+      var b=S.b[L+1][j],db=B.dB[L+1][j];t+='<tr><td>b '+NAMES[L+1][j]+'</td><td>'+f3(b)+'</td><td>'+f4(sg*db)+'</td><td>'+f3(b+db)+'</td></tr>';
+    }
+    $('tbl').innerHTML=t;
+  }
+
+  function drawErr(E){
+    var s=$('err');s.innerHTML='';
+    var L=50,R=464,T=14,B=180,pts=hist.length?hist:[E];
+    var mx=Math.max.apply(null,pts.concat([0.0001]));
+    function Y(v){return B-(v/mx)*(B-T)}
+    var n=Math.max(pts.length-1,1);
+    function X(i){return L+(i/n)*(R-L)}
+    s.appendChild(el('line',{x1:L,y1:B,x2:R,y2:B,stroke:'var(--line)','stroke-width':1.5}));
+    s.appendChild(el('line',{x1:L,y1:T,x2:L,y2:B,stroke:'var(--line)','stroke-width':1.5}));
+    [0,.5,1].forEach(function(g){
+      s.appendChild(el('line',{x1:L,y1:Y(g*mx),x2:R,y2:Y(g*mx),stroke:'var(--line)','stroke-width':.5}));
+      s.appendChild(el('text',{x:L-6,y:Y(g*mx)+4,'text-anchor':'end',class:'m'},(g*mx).toFixed(3)));
+    });
+    var d='';pts.forEach(function(v,i){d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)+' '});
+    if(pts.length>1)s.appendChild(el('path',{d:d,fill:'none',stroke:'var(--accent)','stroke-width':3,'stroke-linejoin':'round'}));
+    s.appendChild(el('circle',{cx:X(pts.length-1),cy:Y(pts[pts.length-1]),r:5,fill:'var(--warn)'}));
+    s.appendChild(el('text',{x:R,y:B+16,'text-anchor':'end',class:'m'},'รอบอัปเดต (ตอนนี้ '+(pts.length-1)+')'));
+    s.appendChild(el('text',{x:L,y:B+34,class:'m'},'E = '+f4(pts[pts.length-1])));
+    if(pts.length<2)s.appendChild(el('text',{x:(L+R)/2,y:(T+B)/2,'text-anchor':'middle',class:'m'},'กด "อัปเดต" เพื่อเริ่มวาดกราฟ'));
+  }
+
+  function applyRaw(){
+    var B=back();
+    for(var L=0;L<NL;L++){
+      for(var i=0;i<SZ[L];i++)for(var j=0;j<SZ[L+1];j++)S.W[L][i][j]=Math.max(-3,Math.min(3,S.W[L][i][j]+B.dW[L][i][j]));
+      for(var j2=0;j2<SZ[L+1];j2++)S.b[L+1][j2]=Math.max(-3,Math.min(3,S.b[L+1][j2]+B.dB[L+1][j2]));
+    }
+  }
+  function applyOnce(){applyRaw();hist.push(back().E)}
+  var RS=[0.1,0.5,1,2,5],RC=['var(--muted)','var(--good)','var(--accent)','var(--warn)','var(--bad)'];
+  function sim(r,n){
+    var sw=S.W,sb=S.b,sr=S.r,out;
+    S.W=clone(sw);S.b=clone(sb);S.r=r;
+    out=[err(run().o[NL])];
+    for(var k=0;k<n;k++){applyRaw();out.push(err(run().o[NL]))}
+    S.W=sw;S.b=sb;S.r=sr;return out;
+  }
+  function drawCmp(){
+    var s=$('cmp');s.innerHTML='';
+    var N=50,L=54,R=470,T=14,B=210,curves=RS.map(function(r){return sim(r,N)});
+    var mx=0.0001;curves.forEach(function(c){c.forEach(function(v){if(v>mx)mx=v})});
+    function X(i){return L+i/N*(R-L)}
+    function Y(v){return B-v/mx*(B-T)}
+    s.appendChild(el('line',{x1:L,y1:B,x2:R,y2:B,stroke:'var(--line)','stroke-width':1.5}));
+    s.appendChild(el('line',{x1:L,y1:T,x2:L,y2:B,stroke:'var(--line)','stroke-width':1.5}));
+    [0,.5,1].forEach(function(g){
+      s.appendChild(el('line',{x1:L,y1:Y(g*mx),x2:R,y2:Y(g*mx),stroke:'var(--line)','stroke-width':.5}));
+      s.appendChild(el('text',{x:L-6,y:Y(g*mx)+4,'text-anchor':'end',class:'m'},(g*mx).toFixed(3)));
+    });
+    [0,10,20,30,40,50].forEach(function(i){s.appendChild(el('text',{x:X(i),y:B+14,'text-anchor':'middle',class:'m'},String(i)))});
+    s.appendChild(el('text',{x:R,y:B+30,'text-anchor':'end',class:'m'},'รอบอัปเดต'));
+    curves.forEach(function(c,k){
+      var d='';c.forEach(function(v,i){d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)+' '});
+      var cur=Math.abs(S.r-RS[k])<0.001;
+      s.appendChild(el('path',{d:d,fill:'none',stroke:RC[k],'stroke-width':cur?4:2.2,'stroke-linejoin':'round'}));
+      s.appendChild(el('text',{x:R+6,y:Y(c[N])+4,style:'fill:'+RC[k]},'η='+RS[k]));
+    });
+    $('cmpnote').textContent='E หลัง 50 รอบ: '+curves.map(function(c,k){return 'η='+RS[k]+' → '+c[N].toFixed(4)}).join(' · ')+'. เส้นหนา = η ที่ตั้งอยู่ (weight และ bias ถูกจำกัดที่ ±3)';
+  }
+
+  function update(){
+    sync.forEach(function(f){f()});
+    drawArch();
+    var B=back(),F=B.F;
+    STEPS=buildSteps();
+    if(stepIdx>=STEPS.length)stepIdx=STEPS.length-1;
+    if(!hist.length)hist=[B.E];
+    drawStep(F);drawPlot(F);showTable(B);drawErr(B.E);drawCmp();
+    Array.prototype.forEach.call(document.querySelectorAll('#rp button'),function(b){b.setAttribute('aria-pressed',Math.abs(parseFloat(b.getAttribute('data-r'))-S.r)<0.001?'true':'false')});
+  }
+  function setMode(m){MODE=m;Array.prototype.forEach.call(document.querySelectorAll('#mt button'),function(c){c.setAttribute('aria-pressed',c.getAttribute('data-m')===m?'true':'false')})}
+  function go(i){stepIdx=Math.max(0,Math.min(STEPS.length-1,i));update()}
+  $('next').addEventListener('click',function(){go(stepIdx+1)});
+  $('prev').addEventListener('click',function(){go(stepIdx-1)});
+  $('first').addEventListener('click',function(){go(0)});
+  $('last').addEventListener('click',function(){go(STEPS.length-1)});
+  $('applyStep').addEventListener('click',function(){if(!hist.length)hist=[back().E];applyOnce();stepIdx=0;update()});
+  Array.prototype.forEach.call(document.querySelectorAll('#mt button'),function(b){b.addEventListener('click',function(){var m=b.getAttribute('data-m');if(m==='delta'&&OVON){OVON=false;$('ovon').checked=false;$('ovs').style.display='none'}setMode(m);update()})});
+  $('addLayer').addEventListener('click',addLayer);
+  $('resetArch').addEventListener('click',function(){S=clone(DEF);adopt();update()});
+  Array.prototype.forEach.call(document.querySelectorAll('#rp button'),function(b){b.addEventListener('click',function(){S.r=parseFloat(b.getAttribute('data-r'));hist=[];update()})});
+  $('apply').addEventListener('click',function(){if(!hist.length)hist=[back().E];applyOnce();update()});
+  $('apply10').addEventListener('click',function(){if(!hist.length)hist=[back().E];for(var k=0;k<10;k++)applyOnce();update()});
+  $('reset').addEventListener('click',function(){S=clone(DEF);adopt();update()});
+  Array.prototype.forEach.call(document.querySelectorAll('#ft button'),function(b){
+    b.addEventListener('click',function(){
+      fn=b.getAttribute('data-f');
+      Array.prototype.forEach.call(document.querySelectorAll('#ft button'),function(c){c.setAttribute('aria-pressed',c===b?'true':'false')});
+      update();
+    });
+  });
+  adopt();update();
+})();
+</script>
+
+</body></html>
